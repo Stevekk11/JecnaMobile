@@ -122,9 +122,9 @@ class TimetableViewModel @Inject constructor(
                 /* Load the current timetable if there is no cache or
                 the load was initiated automatically (upon open internet reconnection) */
                 val realTimetable = if (uiState.selectedPeriod == null || current)
-                    repository.getRealTimetable()
+                    repository.getRealTimetable(uiState.showSubstitutions)
                 else
-                    repository.getRealTimetable(uiState.selectedSchoolYear, uiState.selectedPeriod!!)
+                    repository.getRealTimetable(uiState.selectedSchoolYear, uiState.selectedPeriod!!, uiState.showSubstitutions)
 
                 changeUiState(
                     timetablePage = realTimetable,
@@ -181,6 +181,16 @@ class TimetableViewModel @Inject constructor(
 
     fun onSnackBarMessageEventConsumed() = changeUiState(snackBarMessageEvent = consumed())
 
+    fun setShowSubstitutions(showSubstitutions: Boolean)
+    {
+        if (uiState.showSubstitutions != showSubstitutions)
+        {
+            changeUiState(showSubstitutions = showSubstitutions)
+            if (uiState.timetablePage != null)
+                loadReal(false)
+        }
+    }
+
     private fun changeUiState(
         loading: Boolean = uiState.loading,
         timetablePage: TimetablePage? = uiState.timetablePage,
@@ -188,6 +198,7 @@ class TimetableViewModel @Inject constructor(
         isCache: Boolean = uiState.isCache,
         selectedSchoolYear: SchoolYear = uiState.selectedSchoolYear,
         selectedPeriod: TimetablePage.PeriodOption? = uiState.selectedPeriod,
+        showSubstitutions: Boolean = uiState.showSubstitutions,
         snackBarMessageEvent: StateEventWithContent<String> = uiState.snackBarMessageEvent
     )
     {
@@ -198,6 +209,7 @@ class TimetableViewModel @Inject constructor(
             isCache = isCache,
             selectedSchoolYear = selectedSchoolYear,
             selectedPeriod = selectedPeriod,
+            showSubstitutions = showSubstitutions,
             snackBarMessageEvent = snackBarMessageEvent
         )
     }

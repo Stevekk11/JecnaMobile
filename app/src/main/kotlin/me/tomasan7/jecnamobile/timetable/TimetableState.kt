@@ -15,5 +15,6 @@ data class TimetableState(
     val isCache: Boolean = false,
     val selectedSchoolYear: SchoolYear = timetablePage?.selectedSchoolYear ?: SchoolYear.current(),
     val selectedPeriod: TimetablePage.PeriodOption? = timetablePage?.periodOptions?.find { it.selected },
+    val showSubstitutions: Boolean = true,
     val snackBarMessageEvent: StateEventWithContent<String> = consumed()
 )

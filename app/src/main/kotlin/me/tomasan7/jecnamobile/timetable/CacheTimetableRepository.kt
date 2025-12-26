@@ -45,16 +45,16 @@ class CacheTimetableRepository @Inject constructor(
         }
     }
 
-    suspend fun getRealTimetable(): TimetablePage
+    suspend fun getRealTimetable(withSubstitutions: Boolean = true): TimetablePage
     {
-        val timetablePage = timetableRepository.getTimetablePage()
+        val timetablePage = timetableRepository.getTimetablePage(withSubstitutions)
         cacheFile.writeText(Json.encodeToString(CachedData(timetablePage)))
         return timetablePage
     }
 
     /** Will not cache anything. */
-    suspend fun getRealTimetable(schoolYear: SchoolYear, timetablePeriod: TimetablePage.PeriodOption) =
-        timetableRepository.getTimetablePage(schoolYear, timetablePeriod)
+    suspend fun getRealTimetable(schoolYear: SchoolYear, timetablePeriod: TimetablePage.PeriodOption, withSubstitutions: Boolean = true) =
+        timetableRepository.getTimetablePage(schoolYear, timetablePeriod, withSubstitutions)
 
     companion object
     {

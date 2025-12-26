@@ -9,10 +9,11 @@ class TimetableRepositoryImpl @Inject constructor(
     private val jecnaClient: JecnaClient
 ) : TimetableRepository
 {
-    override suspend fun getTimetablePage() = jecnaClient.getTimetablePage()
+    override suspend fun getTimetablePage(withSubstitutions: Boolean) = jecnaClient.getTimetablePage(withSubstitutions)
 
     override suspend fun getTimetablePage(
         schoolYear: SchoolYear,
-        timetablePeriod: TimetablePage.PeriodOption
-    ) = jecnaClient.getTimetablePage(schoolYear, timetablePeriod)
+        timetablePeriod: TimetablePage.PeriodOption,
+        withSubstitutions: Boolean
+    ) = jecnaClient.getTimetablePage(schoolYear, timetablePeriod, withSubstitutions)
 }

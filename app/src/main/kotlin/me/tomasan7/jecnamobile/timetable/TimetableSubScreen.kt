@@ -1,7 +1,6 @@
 package me.tomasan7.jecnamobile.timetable
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,17 +10,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.ramcosta.composedestinations.annotation.Destination
@@ -31,7 +33,6 @@ import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.destinations.ClassroomScreenDestination
-import me.tomasan7.jecnamobile.destinations.ClassroomScreenDestination.invoke
 import me.tomasan7.jecnamobile.destinations.TeacherScreenDestination
 import me.tomasan7.jecnamobile.mainscreen.NavDrawerController
 import me.tomasan7.jecnamobile.mainscreen.SubScreenDestination
@@ -62,6 +63,10 @@ fun TimetableSubScreen(
     val uiState = viewModel.uiState
     val snackbarHostState = remember { SnackbarHostState() }
     val settings by settingsAsState()
+
+    LaunchedEffect(settings.showSubstitutions) {
+        viewModel.setShowSubstitutions(settings.showSubstitutions)
+    }
 
     EventEffect(
         event = uiState.snackBarMessageEvent,
@@ -106,12 +111,22 @@ fun TimetableSubScreen(
                     onChangeTimetablePeriod = { viewModel.selectTimetablePeriod(it) }
                 )
 
+                uiState.timetablePage?.substitutionMessage?.let { message ->
+                    Text(
+                        text = message,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
                 if (uiState.timetablePage != null)
                     Timetable(
                         modifier = Modifier.fillMaxSize(),
                         timetable = uiState.timetablePage.timetable,
                         hideClass = true,
-                        showSubstitutions = settings.showSubstitutions,
+                        showSubstitutions = uiState.showSubstitutions,
                         onTeacherClick = { navigator.navigate(TeacherScreenDestination(it)) },
                         onClassroomClick = {navigator.navigate(ClassroomScreenDestination(it))}
                     )
