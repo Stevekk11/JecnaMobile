@@ -8,11 +8,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,6 +25,7 @@ import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
 import io.github.tomhula.jecnaapi.data.timetable.*
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.ui.ElevationLevel
+import me.tomasan7.jecnamobile.ui.component.FlowRowScopeInstance.align
 import me.tomasan7.jecnamobile.util.getWeekDayName
 import me.tomasan7.jecnamobile.util.manipulate
 import java.time.DayOfWeek
@@ -166,7 +170,7 @@ private fun LessonSpot(
         lessonSpotModifier = lessonSpotModifier.fillMaxHeight()
 
     Column(lessonSpotModifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        lessonSpot.forEach { lesson ->
+        lessonSpot.forEachIndexed { index, lesson ->
             /* If there is < 2 lessons, they are stretched to  */
             var lessonModifier = Modifier.fillMaxWidth()
             lessonModifier = if (lessonSpot.size <= 2)
@@ -180,17 +184,10 @@ private fun LessonSpot(
                 lesson = lesson,
                 current = current,
                 next = next,
-                hideClass = hideClass
+                hideClass = hideClass,
+                substitution = if (showSubstitutions && lessonSpot.substitution != null && index == 0) lessonSpot.substitution else null
             )
         }
-
-        if (showSubstitutions && lessonSpot.substitution != null)
-            Text(
-                text = lessonSpot.substitution!!,
-                modifier = Modifier.fillMaxWidth(),
-                fontSize = 10.sp,
-                textAlign = TextAlign.Center
-            )
     }
 }
 
@@ -202,12 +199,21 @@ private fun Lesson(
     onClick: () -> Unit = {},
     current: Boolean = false,
     next: Boolean = false,
-    hideClass: Boolean = false
+    hideClass: Boolean = false,
+    substitution: String? = null
 )
 {
     val shape = RoundedCornerShape(5.dp)
+    val substitutionLower = substitution?.lowercase()
+    val greenOutline = Color(0xFF4CAF50)
+    val borderColor = when {
+        substitutionLower == null -> if (next) MaterialTheme.colorScheme.inverseSurface else null
+        substitutionLower.contains("0") || substitutionLower.contains("odpadá") -> greenOutline
+        else -> MaterialTheme.colorScheme.error
+    }
+    val outlinedModifier = if (borderColor != null) modifier.border(1.dp, borderColor, shape) else modifier
     Surface(
-        modifier = if (next) modifier.border(1.dp, MaterialTheme.colorScheme.inverseSurface, shape) else modifier,
+        modifier = outlinedModifier,
         tonalElevation = ElevationLevel.level2,
         shadowElevation = ElevationLevel.level1,
         shape = shape,
@@ -216,7 +222,12 @@ private fun Lesson(
     ) {
         Box(Modifier.padding(4.dp)) {
             if (lesson.subjectName.short != null)
-                Text(lesson.subjectName.short!!, Modifier.align(Alignment.Center), fontWeight = FontWeight.Bold)
+                Text(
+                    lesson.subjectName.short!!,
+                    Modifier.align(Alignment.Center),
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = if (substitution != null) TextDecoration.LineThrough else null
+                )
             if (!hideClass && lesson.clazz != null)
                 Text(lesson.clazz!!, Modifier.align(Alignment.BottomStart))
             if (lesson.teacherName?.short != null)
@@ -225,6 +236,14 @@ private fun Lesson(
                 Text(lesson.classroom!!, Modifier.align(Alignment.TopEnd))
             if (lesson.group != null)
                 Text(lesson.group!!, Modifier.align(Alignment.BottomEnd), fontSize = 10.sp)
+            if (substitution != null)
+                Text(
+                    text = substitution,
+                    modifier = Modifier.align(Alignment.BottomStart),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.error
+                )
         }
     }
 }
