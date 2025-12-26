@@ -105,6 +105,18 @@ private fun Settings(viewModel: SettingsViewModel)
                 onChange = { viewModel.setOpenSubScreen(it) }
             )
         }
+
+        Option(
+            title = stringResource(id = R.string.settings_show_substitutions_title),
+            description = stringResource(id = R.string.settings_show_substitutions_description)
+        ) {
+            RadioGroup(
+                options = listOf(true, false),
+                optionStringMap = { if (it) "Ano" else "Ne" },
+                selectedOption = settings.showSubstitutions,
+                onSelectionChange = { viewModel.setShowSubstitutions(it) }
+            )
+        }
     }
 }
 

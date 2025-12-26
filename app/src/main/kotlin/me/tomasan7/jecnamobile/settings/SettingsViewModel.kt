@@ -30,4 +30,10 @@ class SettingsViewModel @Inject constructor(
             it.copy(openSubScreenRoute = subScreenRoute)
         }
     }
+
+    fun setShowSubstitutions(showSubstitutions: Boolean) = viewModelScope.launch {
+        settingsDataStore.updateData {
+            it.copy(showSubstitutions = showSubstitutions)
+        }
+    }
 }

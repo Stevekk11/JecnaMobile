@@ -10,6 +10,7 @@ data class Settings(
     var canteenHelpSeen: Boolean = false,
     var gradesViewMode: GradesViewMode = GradesViewMode.GRID,
     val openSubScreenRoute: String = TimetableSubScreenDestination.route,
+    var showSubstitutions: Boolean = true,
 )
 {
     enum class GradesViewMode

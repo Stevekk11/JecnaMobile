@@ -31,6 +31,7 @@ fun Timetable(
     timetable: Timetable,
     modifier: Modifier = Modifier,
     hideClass: Boolean = false,
+    showSubstitutions: Boolean = true,
     onTeacherClick: (TeacherReference) -> Unit = {},
     onClassroomClick: (ClassroomReference) -> Unit = { }
 )
@@ -96,6 +97,7 @@ fun Timetable(
                             current = timetable.getCurrentLessonSpot() === lessonSpot,
                             next = timetable.getCurrentNextLessonSpot(takeEmpty = true) === lessonSpot,
                             hideClass = hideClass,
+                            showSubstitutions = showSubstitutions,
                             breakWidth = breakWidth
                         )
                         HorizontalSpacer(breakWidth)
@@ -153,6 +155,7 @@ private fun LessonSpot(
     current: Boolean = false,
     next: Boolean = false,
     hideClass: Boolean = false,
+    showSubstitutions: Boolean = true,
     breakWidth: Dp = 0.dp
 )
 {
@@ -180,6 +183,14 @@ private fun LessonSpot(
                 hideClass = hideClass
             )
         }
+
+        if (showSubstitutions && lessonSpot.substitution != null)
+            Text(
+                text = lessonSpot.substitution!!,
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
     }
 }
 

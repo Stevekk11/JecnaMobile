@@ -17,6 +17,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import me.tomasan7.jecnamobile.ui.component.OutlinedDropDownSelector
 import me.tomasan7.jecnamobile.ui.component.SchoolYearSelector
 import me.tomasan7.jecnamobile.ui.component.SubScreenTopAppBar
 import me.tomasan7.jecnamobile.ui.component.Timetable
+import me.tomasan7.jecnamobile.util.settingsAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Destination<SubScreensNavGraph>(start = true)
@@ -59,6 +61,7 @@ fun TimetableSubScreen(
 
     val uiState = viewModel.uiState
     val snackbarHostState = remember { SnackbarHostState() }
+    val settings by settingsAsState()
 
     EventEffect(
         event = uiState.snackBarMessageEvent,
@@ -108,6 +111,7 @@ fun TimetableSubScreen(
                         modifier = Modifier.fillMaxSize(),
                         timetable = uiState.timetablePage.timetable,
                         hideClass = true,
+                        showSubstitutions = settings.showSubstitutions,
                         onTeacherClick = { navigator.navigate(TeacherScreenDestination(it)) },
                         onClassroomClick = {navigator.navigate(ClassroomScreenDestination(it))}
                     )
