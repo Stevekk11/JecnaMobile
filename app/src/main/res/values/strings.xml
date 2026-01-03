@@ -296,5 +296,8 @@
     <string name="classroom_main_class">Kmenová učebna</string>
     <string name="classroom_title_timetable">Rozvrh hodin</string>
     <string name="classrooms_search_placeholder">Název učebny/číslo</string>
+    
+    <string name="substitution_last_update">Suplování akt. pro</string>
+    <string name="teacher_absences">Nepřítomní učitelé</string>
 
 </resources>

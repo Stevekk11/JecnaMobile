@@ -3,10 +3,10 @@ package me.tomasan7.jecnamobile.timetable
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
+import io.github.tomhula.jecnaapi.data.substitution.SubstitutionStatus
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import me.tomasan7.jecnamobile.util.CachedData
 import java.io.File
@@ -55,6 +55,10 @@ class CacheTimetableRepository @Inject constructor(
     /** Will not cache anything. */
     suspend fun getRealTimetable(schoolYear: SchoolYear, timetablePeriod: TimetablePage.PeriodOption, withSubstitutions: Boolean = true) =
         timetableRepository.getTimetablePage(schoolYear, timetablePeriod, withSubstitutions)
+
+    suspend fun getTeacherAbsences() = timetableRepository.getTeacherAbsences()
+
+    suspend fun getSubstitutionStatus(): SubstitutionStatus = timetableRepository.getSubstitutionStatus()
 
     companion object
     {
