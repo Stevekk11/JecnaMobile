@@ -2,6 +2,7 @@ package me.tomasan7.jecnamobile.timetable
 
 import io.github.tomhula.jecnaapi.JecnaClient
 import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
+import io.github.tomhula.jecnaapi.data.substitution.LabeledTeacherAbsences
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import javax.inject.Inject
 
@@ -16,4 +17,8 @@ class TimetableRepositoryImpl @Inject constructor(
         timetablePeriod: TimetablePage.PeriodOption,
         withSubstitutions: Boolean
     ) = jecnaClient.getTimetablePage(schoolYear, timetablePeriod, withSubstitutions)
+
+    override suspend fun getTeacherAbsences(): List<LabeledTeacherAbsences> = jecnaClient.getTeacherAbsences()
+
+    override suspend fun getSubstitutionStatus() = jecnaClient.getSubstitutions().status
 }

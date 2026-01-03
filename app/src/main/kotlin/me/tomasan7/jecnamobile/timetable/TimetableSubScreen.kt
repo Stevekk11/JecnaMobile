@@ -3,13 +3,16 @@ package me.tomasan7.jecnamobile.timetable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -29,6 +32,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import de.palm.composestateevents.EventEffect
+import io.github.tomhula.jecnaapi.data.substitution.LabeledTeacherAbsences
 import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import me.tomasan7.jecnamobile.R
@@ -37,12 +41,17 @@ import me.tomasan7.jecnamobile.destinations.TeacherScreenDestination
 import me.tomasan7.jecnamobile.mainscreen.NavDrawerController
 import me.tomasan7.jecnamobile.mainscreen.SubScreenDestination
 import me.tomasan7.jecnamobile.mainscreen.SubScreensNavGraph
+import me.tomasan7.jecnamobile.ui.component.Card
+import me.tomasan7.jecnamobile.ui.component.HorizontalSpacer
+import me.tomasan7.jecnamobile.ui.component.InfoRow
 import me.tomasan7.jecnamobile.ui.component.OfflineDataIndicator
 import me.tomasan7.jecnamobile.ui.component.OutlinedDropDownSelector
 import me.tomasan7.jecnamobile.ui.component.SchoolYearSelector
 import me.tomasan7.jecnamobile.ui.component.SubScreenTopAppBar
 import me.tomasan7.jecnamobile.ui.component.Timetable
 import me.tomasan7.jecnamobile.util.settingsAsState
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Destination<SubScreensNavGraph>(start = true)
@@ -123,13 +132,23 @@ fun TimetableSubScreen(
 
                 if (uiState.timetablePage != null)
                     Timetable(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth(),
                         timetable = uiState.timetablePage.timetable,
                         hideClass = true,
                         showSubstitutions = uiState.showSubstitutions,
                         onTeacherClick = { navigator.navigate(TeacherScreenDestination(it)) },
                         onClassroomClick = {navigator.navigate(ClassroomScreenDestination(it))}
                     )
+                InfoRow(
+                    label = R.string.substitution_last_update,
+                    value = uiState.substitutionStatus
+                        ?.lastUpdated
+                        ?.let(::formatSubstitutionStatusTime)
+                        ?: ""
+                )
+
+                if (uiState.teacherAbsences.isNotEmpty())
+                    TeacherAbsencesSection(teacherAbsences = uiState.teacherAbsences)
             }
         }
     }
@@ -181,3 +200,63 @@ private fun TimetablePeriodSelector(
         onChange = onChange
     )
 }
+
+private fun formatSubstitutionStatusTime(raw: String): String
+{
+    return raw.trim()
+}
+
+@Composable
+private fun TeacherAbsencesSection(teacherAbsences: List<LabeledTeacherAbsences>)
+{
+    Card(
+        title = {
+            Text(
+                text = stringResource(R.string.teacher_absences),
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            teacherAbsences.forEach { day ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = LocalDate.parse(day.date).format(DATE_FORMATTER),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    day.absences.forEach { absence ->
+                        val teacherLabel = absence.teacherCode ?: absence.teacher ?: ""
+                        val hoursLabel = absence.hours?.toString()?.let { " ($it)" }.orEmpty()
+
+                        Text(
+                            text = listOfNotNull(
+                                teacherLabel.takeIf { it.isNotBlank() },
+                                absence.type
+                            ).joinToString(" – ") + hoursLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+
+                    // Small separator spacing between days
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+        }
+    }
+}
+private val DATE_FORMATTER = DateTimeFormatter.ofPattern("d.M.")

@@ -2,11 +2,9 @@ package me.tomasan7.jecnamobile.timetable
 
 import android.content.Context
 import android.content.IntentFilter
-import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +17,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import io.github.tomhula.jecnaapi.JecnaClient
+import io.github.tomhula.jecnaapi.data.substitution.LabeledTeacherAbsences
+import io.github.tomhula.jecnaapi.data.substitution.SubstitutionStatus
 import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import me.tomasan7.jecnamobile.JecnaMobileApplication
@@ -30,6 +30,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlin.collections.emptyList
 
 @HiltViewModel
 class TimetableViewModel @Inject constructor(
@@ -102,7 +103,9 @@ class TimetableViewModel @Inject constructor(
                 selectedSchoolYear = cachedGrades.data.selectedSchoolYear,
                 selectedPeriod = cachedGrades.data.periodOptions.find { it.selected },
                 lastUpdateTimestamp = cachedGrades.timestamp,
-                isCache = true
+                isCache = true,
+                teacherAbsences = emptyList(),
+                substitutionStatus = null
             )
         }
     }
@@ -126,12 +129,18 @@ class TimetableViewModel @Inject constructor(
                 else
                     repository.getRealTimetable(uiState.selectedSchoolYear, uiState.selectedPeriod!!, uiState.showSubstitutions)
 
+                // Fetch substitution endpoint metadata
+                val substitutionStatus = repository.getSubstitutionStatus()
+                val teacherAbsences = repository.getTeacherAbsences()
+
                 changeUiState(
                     timetablePage = realTimetable,
                     selectedSchoolYear = realTimetable.selectedSchoolYear,
                     selectedPeriod = realTimetable.periodOptions.find { it.selected },
                     lastUpdateTimestamp = Instant.now(),
-                    isCache = false
+                    isCache = false,
+                    teacherAbsences = teacherAbsences,
+                    substitutionStatus = substitutionStatus
                 )
             }
             catch (e: UnresolvedAddressException)
@@ -199,6 +208,8 @@ class TimetableViewModel @Inject constructor(
         selectedSchoolYear: SchoolYear = uiState.selectedSchoolYear,
         selectedPeriod: TimetablePage.PeriodOption? = uiState.selectedPeriod,
         showSubstitutions: Boolean = uiState.showSubstitutions,
+        teacherAbsences: List<LabeledTeacherAbsences> = uiState.teacherAbsences,
+        substitutionStatus: SubstitutionStatus? = uiState.substitutionStatus,
         snackBarMessageEvent: StateEventWithContent<String> = uiState.snackBarMessageEvent
     )
     {
@@ -210,6 +221,8 @@ class TimetableViewModel @Inject constructor(
             selectedSchoolYear = selectedSchoolYear,
             selectedPeriod = selectedPeriod,
             showSubstitutions = showSubstitutions,
+            teacherAbsences = teacherAbsences,
+            substitutionStatus = substitutionStatus,
             snackBarMessageEvent = snackBarMessageEvent
         )
     }

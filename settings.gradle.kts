@@ -17,4 +17,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "JecnaMobile"
 include(":app")
-includeBuild("C:\\Users\\Steve\\IdeaProjects\\JecnaAPI")
+includeBuild("../../IdeaProjects/JecnaAPI")
