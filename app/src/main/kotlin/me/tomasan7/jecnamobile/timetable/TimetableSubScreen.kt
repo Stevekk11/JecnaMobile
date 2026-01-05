@@ -42,7 +42,6 @@ import me.tomasan7.jecnamobile.mainscreen.NavDrawerController
 import me.tomasan7.jecnamobile.mainscreen.SubScreenDestination
 import me.tomasan7.jecnamobile.mainscreen.SubScreensNavGraph
 import me.tomasan7.jecnamobile.ui.component.Card
-import me.tomasan7.jecnamobile.ui.component.HorizontalSpacer
 import me.tomasan7.jecnamobile.ui.component.InfoRow
 import me.tomasan7.jecnamobile.ui.component.OfflineDataIndicator
 import me.tomasan7.jecnamobile.ui.component.OutlinedDropDownSelector
@@ -137,7 +136,7 @@ fun TimetableSubScreen(
                         hideClass = true,
                         showSubstitutions = uiState.showSubstitutions,
                         onTeacherClick = { navigator.navigate(TeacherScreenDestination(it)) },
-                        onClassroomClick = {navigator.navigate(ClassroomScreenDestination(it))}
+                        onClassroomClick = { navigator.navigate(ClassroomScreenDestination(it)) }
                     )
                 InfoRow(
                     label = R.string.substitution_last_update,
@@ -231,7 +230,7 @@ private fun TeacherAbsencesSection(teacherAbsences: List<LabeledTeacherAbsences>
                         text = LocalDate.parse(day.date).format(DATE_FORMATTER),
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    
+
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 4.dp),
                         thickness = 1.dp,
@@ -239,24 +238,44 @@ private fun TeacherAbsencesSection(teacherAbsences: List<LabeledTeacherAbsences>
                     )
 
                     day.absences.forEach { absence ->
-                        val teacherLabel = absence.teacherCode ?: absence.teacher ?: ""
-                        val hoursLabel = absence.hours?.toString()?.let { " ($it)" }.orEmpty()
+                        val teacherCodeLabel = absence.teacherCode?.replaceFirstChar { it.uppercase() }
+                        val teacherLabel = listOfNotNull(teacherCodeLabel, absence.teacher ?: "")
+                            .filter { it.isNotBlank() }
+                            .joinToString(" - ")
+                        val hoursLabel = absence.hours?.let { " ($it)" } ?: ""
+                        val localizedType = remember(absence.type) { absence.type.trim() }
+                            .takeIf { it.isNotBlank() }
+                            ?.let { typeCode -> teacherAbsenceTypeLabel(typeCode) }
 
                         Text(
                             text = listOfNotNull(
                                 teacherLabel.takeIf { it.isNotBlank() },
-                                absence.type
+                                localizedType
                             ).joinToString(" – ") + hoursLabel,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(start = 12.dp)
                         )
                     }
 
-                    // Small separator spacing between days
                     Spacer(Modifier.height(4.dp))
                 }
             }
         }
     }
 }
+
+@Composable
+private fun teacherAbsenceTypeLabel(typeCode: String): String
+{
+    return when (typeCode.lowercase())
+    {
+        "wholeday" -> stringResource(R.string.teacher_absence_type_whole_day)
+        "single" -> stringResource(R.string.teacher_absence_type_single)
+        "range" -> stringResource(R.string.teacher_absence_type_range)
+        "exkurze" -> stringResource(R.string.teacher_absence_type_exkurze)
+        "invalid" -> stringResource(R.string.teacher_absence_type_invalid)
+        else -> typeCode
+    }
+}
+
 private val DATE_FORMATTER = DateTimeFormatter.ofPattern("d.M.")
