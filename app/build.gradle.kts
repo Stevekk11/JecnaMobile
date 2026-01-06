@@ -99,8 +99,11 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
+
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(libs.hilt.work)
     implementation(libs.work.runtime.ktx)
     implementation(libs.datastore)
     implementation(libs.serialization.json)
+    implementation(libs.security.crypto)
 }

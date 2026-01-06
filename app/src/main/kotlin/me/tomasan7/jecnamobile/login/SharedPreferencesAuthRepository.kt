@@ -1,6 +1,9 @@
 package me.tomasan7.jecnamobile.login
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.tomhula.jecnaapi.web.Auth
 import javax.inject.Inject
@@ -10,7 +13,17 @@ class SharedPreferencesAuthRepository @Inject constructor(
     appContext: Context
 ) : AuthRepository
 {
-    private val preferences = appContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+    private val masterKey = MasterKey.Builder(appContext)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val preferences = EncryptedSharedPreferences.create(
+        appContext,
+        FILE_NAME,
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     override fun get(): Auth?
     {
@@ -22,18 +35,16 @@ class SharedPreferencesAuthRepository @Inject constructor(
 
     override fun set(auth: Auth)
     {
-        with(preferences.edit()) {
+        preferences.edit {
             putString(USERNAME_KEY, auth.username)
             putString(PASSWORD_KEY, auth.password)
-            apply()
         }
     }
 
     override fun clear()
     {
-        with(preferences.edit()) {
+        preferences.edit {
             clear()
-            apply()
         }
     }
 
