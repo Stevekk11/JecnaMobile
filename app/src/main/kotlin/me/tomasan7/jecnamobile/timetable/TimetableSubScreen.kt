@@ -32,6 +32,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import de.palm.composestateevents.EventEffect
+import io.github.tomhula.jecnaapi.data.substitution.AbsenceHours
 import io.github.tomhula.jecnaapi.data.substitution.LabeledTeacherAbsences
 import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
 import io.github.tomhula.jecnaapi.util.SchoolYear
@@ -242,10 +243,16 @@ private fun TeacherAbsencesSection(teacherAbsences: List<LabeledTeacherAbsences>
                         val teacherLabel = listOfNotNull(teacherCodeLabel, absence.teacher ?: "")
                             .filter { it.isNotBlank() }
                             .joinToString(" - ")
-                        val hoursLabel = absence.hours?.let { " ($it)" } ?: ""
+
                         val localizedType = remember(absence.type) { absence.type.trim() }
                             .takeIf { it.isNotBlank() }
                             ?.let { typeCode -> teacherAbsenceTypeLabel(typeCode) }
+
+                        val hoursLabel = absence.hours
+                            ?.let { formatAbsenceHours(it) }
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { " ($it)" }
+                            ?: ""
 
                         Text(
                             text = listOfNotNull(
@@ -262,6 +269,18 @@ private fun TeacherAbsencesSection(teacherAbsences: List<LabeledTeacherAbsences>
             }
         }
     }
+}
+
+private fun formatAbsenceHours(hours: AbsenceHours): String
+{
+    val from = hours.from
+    val to = hours.to
+
+    
+    return if (to == null || to == from)
+        "$from. hodina"
+    else
+        "$from–$to hodina"
 }
 
 @Composable

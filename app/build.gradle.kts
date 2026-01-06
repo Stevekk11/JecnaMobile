@@ -14,11 +14,11 @@ android {
     namespace = "me.tomasan7.jecnamobile"
 
     defaultConfig {
-        applicationId = "me.tomasan7.jecnamobile"
+        applicationId = "me.stevek11.jecnamobile"
         minSdk = 26
         targetSdk = 36
         versionCode = 37
-        versionName = "2.7.0"
+        versionName = "2.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
