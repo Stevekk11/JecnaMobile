@@ -220,7 +220,7 @@ private fun Lesson(
         color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         onClick = onClick
     ) {
-        Box(Modifier.padding(4.dp)) {
+        Box(Modifier.padding(2.dp)) {
             if (lesson.subjectName.short != null)
                 Text(
                     lesson.subjectName.short!!,
@@ -239,10 +239,12 @@ private fun Lesson(
             if (substitution != null)
                 Text(
                     text = substitution,
-                    modifier = Modifier.align(Alignment.BottomStart),
-                    fontSize = 10.sp,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.error
+                    modifier = Modifier.align(Alignment.BottomStart).widthIn( max =80.dp),
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Left,
+                    color = MaterialTheme.colorScheme.error,
+                    lineHeight = 10.sp,
+                    softWrap = true
                 )
         }
     }
