@@ -75,7 +75,7 @@
 -dontwarn org.openjsse.javax.net.ssl.SSLSocket
 -dontwarn org.openjsse.net.ssl.OpenJSSE
 -dontwarn org.slf4j.impl.StaticLoggerBinder
-
+-dontwarn com.google.errorprone.annotations.**
 -keep class io.ktor.** { *; }
 -keep interface io.ktor.** { *; }
 

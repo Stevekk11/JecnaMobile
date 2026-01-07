@@ -8,13 +8,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -25,7 +25,6 @@ import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
 import io.github.tomhula.jecnaapi.data.timetable.*
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.ui.ElevationLevel
-import me.tomasan7.jecnamobile.ui.component.FlowRowScopeInstance.align
 import me.tomasan7.jecnamobile.util.getWeekDayName
 import me.tomasan7.jecnamobile.util.manipulate
 import java.time.DayOfWeek
@@ -178,6 +177,17 @@ private fun LessonSpot(
             else
                 lessonModifier.height(50.dp)
 
+            val substitutionForLesson = remember(showSubstitutions, lessonSpot.substitution, lessonSpot.size, index, lesson.group) {
+                if (!showSubstitutions) return@remember null
+                val raw = lessonSpot.substitution ?: return@remember null
+
+                // If the spot isn't split (or groups aren't known), keep original behavior.
+                if (lessonSpot.size <= 1) return@remember if (index == 0) raw else null
+
+                // For split lessons, try to route substitutions marked with 1/2 or 2/2 to the correct group.
+                raw.extractGroupSubstitutionForLesson(lesson)
+            }
+
             Lesson(
                 modifier = lessonModifier,
                 onClick = { onLessonClick(lesson) },
@@ -185,10 +195,67 @@ private fun LessonSpot(
                 current = current,
                 next = next,
                 hideClass = hideClass,
-                substitution = if (showSubstitutions && lessonSpot.substitution != null && index == 0) lessonSpot.substitution else null
+                substitution = substitutionForLesson
             )
         }
     }
+}
+
+/**
+ * Extracts the part of a substitution text that belongs to the given [lesson] when the lesson spot is split by group.
+ *
+ * Rules:
+ * - If the text contains both "1/2" and "2/2", it will be split at the first occurrence of the second marker,
+ *   and each chunk is routed to its respective group.
+ * - If it contains only one marker, it will be shown only on the matching group.
+ * - If it contains no markers (or group is unknown), we fallback to showing it on the first lesson (legacy behavior).
+ */
+private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
+{
+    val raw = this
+    val idx1 = raw.indexOf("1/2")
+    val idx2 = raw.indexOf("2/2")
+
+    // No group markers -> keep legacy behavior: show on the first lesson only.
+    if (idx1 == -1 && idx2 == -1)
+        return if (lesson.group == null || lesson.group == "0") raw else null
+
+    // If we don't know the group's id, we can't route reliably.
+    val lessonGroup = lesson.group
+
+    fun matchesGroup(marker: String): Boolean
+    {
+        if (lessonGroup == null) return false
+        // Be permissive: group in API seems to be a string number ("1", "2").
+        // Some data might already include "1/2" style.
+        return lessonGroup == marker || lessonGroup == marker.substringBefore('/')
+    }
+
+    // Both markers present: split into two chunks at the second marker boundary.
+    if (idx1 != -1 && idx2 != -1)
+    {
+        val firstIs1 = idx1 < idx2
+        val firstMarkerIndex = if (firstIs1) idx1 else idx2
+        val secondMarkerIndex = if (firstIs1) idx2 else idx1
+
+        val firstChunk = raw.substring(firstMarkerIndex, secondMarkerIndex).trim()
+        val secondChunk = raw.substring(secondMarkerIndex).trim()
+
+        return when {
+            firstIs1 && matchesGroup("1/2") -> firstChunk
+            firstIs1 && matchesGroup("2/2") -> secondChunk
+            !firstIs1 && matchesGroup("2/2") -> firstChunk
+            !firstIs1 && matchesGroup("1/2") -> secondChunk
+            else -> null
+        }
+    }
+
+    // Only one marker present.
+    if (idx1 != -1)
+        return if (matchesGroup("1/2")) raw.substring(idx1).trim() else null
+
+    // idx2 != -1
+    return if (matchesGroup("2/2")) raw.substring(idx2).trim() else null
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -220,7 +287,8 @@ private fun Lesson(
         color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         onClick = onClick
     ) {
-        Box(Modifier.padding(2.dp)) {
+        // Use a bit more padding and enforce bounded children to avoid visual overlap in split lessons.
+        Box(Modifier.padding(horizontal = 3.dp, vertical = 2.dp)) {
             if (lesson.subjectName.short != null)
                 Text(
                     lesson.subjectName.short!!,
@@ -239,12 +307,11 @@ private fun Lesson(
             if (substitution != null)
                 Text(
                     text = substitution,
-                    modifier = Modifier.align(Alignment.BottomStart).widthIn( max =80.dp),
+                    modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 80.dp),
                     fontSize = 9.sp,
                     textAlign = TextAlign.Left,
                     color = MaterialTheme.colorScheme.error,
                     lineHeight = 10.sp,
-                    softWrap = true
                 )
         }
     }
