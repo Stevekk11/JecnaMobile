@@ -151,7 +151,7 @@ fun Timetable(
                             ?: subjShort
                     }
 
-                    // Resolve teacher from API-provided teacher list by tag (preferred), otherwise fallback to timetable heuristic.
+                    // Resolve teacher from API-provided teacher list by tag
                     val resolvedTeacherRef: TeacherReference? = rawOverrides?.teacherTag?.let { tag ->
                         teacherReferences
                             ?.firstOrNull { it.tag.equals(tag, ignoreCase = true) }
@@ -423,7 +423,7 @@ private fun Lesson(
             if (substitution != null)
                 Text(
                     text = substitution,
-                    modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 80.dp),
+                    modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 75.dp),
                     fontSize = 9.sp,
                     textAlign = TextAlign.Left,
                     color = MaterialTheme.colorScheme.error,
