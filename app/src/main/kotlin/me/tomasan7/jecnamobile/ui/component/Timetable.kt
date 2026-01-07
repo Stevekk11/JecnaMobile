@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,30 +35,45 @@ fun Timetable(
     modifier: Modifier = Modifier,
     hideClass: Boolean = false,
     showSubstitutions: Boolean = true,
+    teacherReferences: Set<TeacherReference>? = null,
     onTeacherClick: (TeacherReference) -> Unit = {},
     onClassroomClick: (ClassroomReference) -> Unit = { }
 )
 {
-    val mostLessonsInLessonSpotInEachDay = remember(timetable) {
+    val (mostLessonsInLessonSpotInEachDay, hasExpandedSubstitutionInDay) = remember(timetable) {
         timetable.run {
-            val result = mutableMapOf<DayOfWeek, Int>()
+            val most = mutableMapOf<DayOfWeek, Int>()
+            val expanded = mutableMapOf<DayOfWeek, Boolean>()
 
             for (day in days)
             {
-                var dayResult = 0
+                var dayMost = 0
+                var dayHasExpandableSub = false
 
                 for (lessonSpot in getLessonSpotsForDay(day)!!)
-                    if (lessonSpot.size > dayResult)
-                        dayResult = lessonSpot.size
+                {
+                    if (lessonSpot.size > dayMost)
+                        dayMost = lessonSpot.size
 
-                result[day] = dayResult
+                    // Only expand the day's row if the substitution exists AND the spot is split (>1 lesson).
+                    if (lessonSpot.substitution != null && lessonSpot.size > 1)
+                        dayHasExpandableSub = true
+                }
+
+                most[day] = dayMost
+                expanded[day] = dayHasExpandableSub
             }
 
-            result
+            most to expanded
         }
     }
 
-    val dialogState = rememberObjectDialogState<Lesson>()
+    data class LessonDialogPayload(
+        val lessonSpot: LessonSpot,
+        val lesson: Lesson
+    )
+
+    val dialogState = rememberObjectDialogState<LessonDialogPayload>()
 
     Box(modifier = modifier) {
         val breakWidth = 5.dp
@@ -82,10 +97,9 @@ fun Timetable(
             }
 
             timetable.daysSorted.forEach { day ->
-                val rowModifier = if (mostLessonsInLessonSpotInEachDay[day]!! <= 2)
-                    Modifier.height(100.dp)
-                else
-                    Modifier.height(IntrinsicSize.Min)
+                val baseHeight = if (mostLessonsInLessonSpotInEachDay[day]!! <= 2) 100.dp else (mostLessonsInLessonSpotInEachDay[day]!! * 50.dp + (mostLessonsInLessonSpotInEachDay[day]!! - 1) * 2.dp)
+                val actualHeight = if (hasExpandedSubstitutionInDay[day] == true) (baseHeight.value * 1.7f).dp else baseHeight
+                val rowModifier = Modifier.height(actualHeight)
                 Row(rowModifier) {
                     DayLabel(
                         getWeekDayName(day).substring(0, 2), Modifier
@@ -96,7 +110,7 @@ fun Timetable(
                     timetable.getLessonSpotsForDay(day)!!.forEach { lessonSpot ->
                         LessonSpot(
                             lessonSpot = lessonSpot,
-                            onLessonClick = { dialogState.show(it) },
+                            onLessonClick = { clickedLesson -> dialogState.show(LessonDialogPayload(lessonSpot, clickedLesson)) },
                             current = timetable.getCurrentLessonSpot() === lessonSpot,
                             next = timetable.getCurrentNextLessonSpot(takeEmpty = true) === lessonSpot,
                             hideClass = hideClass,
@@ -111,13 +125,57 @@ fun Timetable(
         ObjectDialog(
             state = dialogState,
             onDismissRequest = { dialogState.hide() },
-            content = { lesson ->
-                LessonDialogContent(
-                    lesson = lesson,
-                    onCloseClick = { dialogState.hide() },
-                    onTeacherClick = { onTeacherClick(it) },
-                    onClassroomClick = { onClassroomClick(it) }
-                )
+            content = { payload ->
+                val lesson = payload.lesson
+                val clickedSpot = payload.lessonSpot
+
+                // Key recomposition to the spot substitution (and lesson) so changing the click updates the dialog.
+                key(clickedSpot.substitution, lesson) {
+                    val substitutionText = if (showSubstitutions)
+                        clickedSpot.substitution?.extractGroupSubstitutionForLesson(lesson)
+                    else null
+
+                    val rawOverrides = substitutionText?.extractSubstitutionOverridesForLesson(lesson)
+
+                    // Resolve subject full name from shorts using data already present in the timetable.
+                    val allLessons = timetable.daysSorted
+                        .asSequence()
+                        .mapNotNull { day -> timetable.getLessonSpotsForDay(day) }
+                        .flatten()
+                        .flatMap { it.asSequence() }
+                        .toList()
+
+                    val resolvedSubjectFull = rawOverrides?.subjectFull?.let { subjShort ->
+                        allLessons.firstOrNull { it.subjectName.short?.equals(subjShort, ignoreCase = true) == true }
+                            ?.subjectName?.full
+                            ?: subjShort
+                    }
+
+                    // Resolve teacher from API-provided teacher list by tag (preferred), otherwise fallback to timetable heuristic.
+                    val resolvedTeacherRef: TeacherReference? = rawOverrides?.teacherTag?.let { tag ->
+                        teacherReferences
+                            ?.firstOrNull { it.tag.equals(tag, ignoreCase = true) }
+                            ?: run {
+                                val name = allLessons.firstOrNull { it.teacherName?.short?.equals(tag, ignoreCase = true) == true }
+                                    ?.teacherName
+                                if (name?.short != null) TeacherReference(name.full, name.short!!) else null
+                            }
+                    }
+
+                    val resolvedOverrides = rawOverrides?.copy(
+                        subjectFull = resolvedSubjectFull,
+                        teacherFull = resolvedTeacherRef?.fullName,
+                        teacherTag = resolvedTeacherRef?.tag ?: rawOverrides.teacherTag
+                    )
+
+                    LessonDialogContent(
+                        lesson = lesson,
+                        onCloseClick = { dialogState.hide() },
+                        onTeacherClick = { onTeacherClick(it) },
+                        onClassroomClick = { onClassroomClick(it) },
+                        substitutionOverrides = resolvedOverrides
+                    )
+                }
             }
         )
     }
@@ -216,18 +274,15 @@ private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
     val idx1 = raw.indexOf("1/2")
     val idx2 = raw.indexOf("2/2")
 
-    // No group markers -> keep legacy behavior: show on the first lesson only.
+    // No group markers ->  show on the first lesson only.
     if (idx1 == -1 && idx2 == -1)
         return if (lesson.group == null || lesson.group == "0") raw else null
-
-    // If we don't know the group's id, we can't route reliably.
+    
     val lessonGroup = lesson.group
 
     fun matchesGroup(marker: String): Boolean
     {
         if (lessonGroup == null) return false
-        // Be permissive: group in API seems to be a string number ("1", "2").
-        // Some data might already include "1/2" style.
         return lessonGroup == marker || lessonGroup == marker.substringBefore('/')
     }
 
@@ -256,6 +311,67 @@ private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
 
     // idx2 != -1
     return if (matchesGroup("2/2")) raw.substring(idx2).trim() else null
+}
+
+private data class SubstitutionOverrides(
+    val subjectFull: String? = null,
+    val classroom: String? = null,
+    val teacherFull: String? = null,
+    val teacherTag: String? = null,
+)
+
+private fun String.cleanSubstitutionToken(): String =
+    trim()
+        .trimEnd(',', ';', '.', '+')
+
+/**
+ * From substitution text, extract the substitution subject(short) + classroom + substituting teacher(tag)
+ * for the given lesson.
+ *
+ * Examples:
+ *  - "2/2 CIT 19c Ku(Ka)+" -> subjectShort=CIT, classroom=19c, teacherTag=Ku
+ *  - "1/2 TP 27 (Ms) odpadá..., 2/2 TP 23 Ma(Pe)+" -> for group 2: subjectShort=TP, classroom=23, teacherTag=Ma
+ *
+ * Rules (per requirement):
+ *  - word right after group marker is subject short
+ *  - next word is classroom
+ *  - next word is substituting teacher (ignore anything in parentheses, which is the missing teacher)
+ */
+private fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): SubstitutionOverrides?
+{
+    val lessonGroup = lesson.group ?: return null
+
+    val marker = when {
+        lessonGroup == "1/2" || lessonGroup == "1" -> "1/2"
+        lessonGroup == "2/2" || lessonGroup == "2" -> "2/2"
+        else -> return null
+    }
+
+    val idx = indexOf(marker)
+    if (idx == -1) return null
+
+    // Slice from marker onward so we don't accidentally parse earlier words.
+    val tail = substring(idx + marker.length).trim()
+    if (tail.isBlank()) return null
+
+    // Tokenize by whitespace.
+    val rawParts = tail.split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (rawParts.isEmpty()) return null
+
+    val subjectShort = rawParts.getOrNull(0)?.cleanSubstitutionToken()
+    val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken()
+
+    // Teacher token might contain parentheses: Ku(Ka)+ -> Ku
+    val teacherToken = rawParts.getOrNull(2)?.cleanSubstitutionToken()
+    val teacherTag = teacherToken?.substringBefore('(')?.cleanSubstitutionToken()
+
+    if (subjectShort.isNullOrBlank() && classroom.isNullOrBlank() && teacherTag.isNullOrBlank()) return null
+
+    return SubstitutionOverrides(
+        subjectFull = subjectShort,
+        classroom = classroom,
+        teacherTag = teacherTag
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -287,7 +403,7 @@ private fun Lesson(
         color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         onClick = onClick
     ) {
-        // Use a bit more padding and enforce bounded children to avoid visual overlap in split lessons.
+        
         Box(Modifier.padding(horizontal = 3.dp, vertical = 2.dp)) {
             if (lesson.subjectName.short != null)
                 Text(
@@ -340,15 +456,27 @@ private fun LessonDialogContent(
     lesson: Lesson,
     onCloseClick: () -> Unit = {},
     onTeacherClick: (TeacherReference) -> Unit,
-    onClassroomClick: (ClassroomReference) -> Unit
+    onClassroomClick: (ClassroomReference) -> Unit,
+    substitutionOverrides: SubstitutionOverrides? = null
 )
 {
+    val red = MaterialTheme.colorScheme.error
+
+    val substitutionSubject = substitutionOverrides?.subjectFull
+    val substitutionTeacherFull = substitutionOverrides?.teacherFull
+    val substitutionTeacherTag = substitutionOverrides?.teacherTag
+    val substitutionClassroom = substitutionOverrides?.classroom
+
+    val titleText = substitutionSubject?.takeIf { it.isNotBlank() } ?: lesson.subjectName.full
+    val titleColor = if (!substitutionSubject.isNullOrBlank() && !substitutionSubject.equals(lesson.subjectName.full, ignoreCase = true)) red else Color.Unspecified
+
     DialogContainer(
         title = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Text(
-                    text = lesson.subjectName.full,
+                    text = titleText,
                     textAlign = TextAlign.Center,
+                    color = titleColor,
                 )
             }
         },
@@ -361,21 +489,51 @@ private fun LessonDialogContent(
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val teacher = lesson.teacherName
-            if (teacher != null && teacher.short == null)
+            // Teacher: substitution teacher overrides original teacher.
+            if (!substitutionTeacherFull.isNullOrBlank() && !substitutionTeacherTag.isNullOrBlank())
+            {
                 DialogRow(
                     label = stringResource(R.string.timetable_dialog_teacher),
-                    value = teacher.full
+                    value = substitutionTeacherFull,
+                    valueColor = red,
+                    onClick = { onTeacherClick(TeacherReference(substitutionTeacherFull, substitutionTeacherTag)) }
                 )
-            else if (teacher?.short != null)
+            }
+            else
+            {
+                val teacher = lesson.teacherName
+                if (teacher != null && teacher.short == null)
+                    DialogRow(
+                        label = stringResource(R.string.timetable_dialog_teacher),
+                        value = teacher.full
+                    )
+                else if (teacher?.short != null)
+                    DialogRow(
+                        label = stringResource(R.string.timetable_dialog_teacher),
+                        value = teacher.full,
+                        onClick = { onTeacherClick(TeacherReference(teacher.full, teacher.short!!)) }
+                    )
+            }
+
+            // Classroom: substitution classroom overrides original classroom.
+            if (!substitutionClassroom.isNullOrBlank())
+            {
                 DialogRow(
-                    label = stringResource(R.string.timetable_dialog_teacher),
-                    value = teacher.full,
-                    onClick = { onTeacherClick(TeacherReference(teacher.full, teacher.short!!)) }
+                    label = stringResource(R.string.timetable_dialog_classroom),
+                    value = substitutionClassroom,
+                    valueColor = red,
+                    onClick = { onClassroomClick(ClassroomReference(substitutionClassroom, substitutionClassroom)) }
                 )
-            if (lesson.classroom != null)
-                DialogRow(stringResource(R.string.timetable_dialog_classroom), lesson.classroom!!,
-                    { onClassroomClick(ClassroomReference(lesson.classroom!!, lesson.classroom!!)) })
+            }
+            else if (lesson.classroom != null)
+            {
+                DialogRow(
+                    stringResource(R.string.timetable_dialog_classroom),
+                    lesson.classroom!!,
+                    { onClassroomClick(ClassroomReference(lesson.classroom!!, lesson.classroom!!)) }
+                )
+            }
+
             if (lesson.group != null)
                 DialogRow(stringResource(R.string.timetable_dialog_group), lesson.group!!)
         }

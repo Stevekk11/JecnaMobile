@@ -136,6 +136,7 @@ fun TimetableSubScreen(
                         timetable = uiState.timetablePage.timetable,
                         hideClass = true,
                         showSubstitutions = uiState.showSubstitutions,
+                        teacherReferences = uiState.teacherReferences,
                         onTeacherClick = { navigator.navigate(TeacherScreenDestination(it)) },
                         onClassroomClick = { navigator.navigate(ClassroomScreenDestination(it)) }
                     )

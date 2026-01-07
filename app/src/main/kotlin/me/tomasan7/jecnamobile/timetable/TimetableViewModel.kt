@@ -31,13 +31,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlin.collections.emptyList
+import io.github.tomhula.jecnaapi.data.schoolStaff.TeachersPage
+import me.tomasan7.jecnamobile.teachers.TeachersRepository
 
 @HiltViewModel
 class TimetableViewModel @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val appContext: Context,
     jecnaClient: JecnaClient,
-    private val repository: CacheTimetableRepository
+    private val repository: CacheTimetableRepository,
+    private val teachersRepository: TeachersRepository
 ) : ViewModel()
 {
     var uiState by mutableStateOf(TimetableState())
@@ -132,6 +135,7 @@ class TimetableViewModel @Inject constructor(
                 // Fetch substitution endpoint metadata
                 val substitutionStatus = repository.getSubstitutionStatus()
                 val teacherAbsences = repository.getTeacherAbsences()
+                val teachersPage = loadTeachersPageSafely()
 
                 changeUiState(
                     timetablePage = realTimetable,
@@ -140,10 +144,12 @@ class TimetableViewModel @Inject constructor(
                     lastUpdateTimestamp = Instant.now(),
                     isCache = false,
                     teacherAbsences = teacherAbsences,
-                    substitutionStatus = substitutionStatus
+                    substitutionStatus = substitutionStatus,
+                    teacherReferences = teachersPage?.teachersReferences,
+                    loading = false
                 )
             }
-            catch (e: UnresolvedAddressException)
+            catch (_: UnresolvedAddressException)
             {
                 if (uiState.lastUpdateTimestamp != null && uiState.isCache)
                     changeUiState(snackBarMessageEvent = triggered(getOfflineMessage()!!))
@@ -164,6 +170,18 @@ class TimetableViewModel @Inject constructor(
             {
                 changeUiState(loading = false)
             }
+        }
+    }
+
+    private suspend fun loadTeachersPageSafely(): TeachersPage?
+    {
+        return try
+        {
+            teachersRepository.getTeachersPage()
+        }
+        catch (_: Exception)
+        {
+            null
         }
     }
 
@@ -210,6 +228,7 @@ class TimetableViewModel @Inject constructor(
         showSubstitutions: Boolean = uiState.showSubstitutions,
         teacherAbsences: List<LabeledTeacherAbsences> = uiState.teacherAbsences,
         substitutionStatus: SubstitutionStatus? = uiState.substitutionStatus,
+        teacherReferences: Set<io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference>? = uiState.teacherReferences,
         snackBarMessageEvent: StateEventWithContent<String> = uiState.snackBarMessageEvent
     )
     {
@@ -223,6 +242,7 @@ class TimetableViewModel @Inject constructor(
             showSubstitutions = showSubstitutions,
             teacherAbsences = teacherAbsences,
             substitutionStatus = substitutionStatus,
+            teacherReferences = teacherReferences,
             snackBarMessageEvent = snackBarMessageEvent
         )
     }

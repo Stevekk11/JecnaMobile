@@ -8,6 +8,7 @@ import io.github.tomhula.jecnaapi.data.timetable.TimetablePage
 import io.github.tomhula.jecnaapi.data.substitution.SubstitutionStatus
 import io.github.tomhula.jecnaapi.util.SchoolYear
 import java.time.Instant
+import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
 
 @Immutable
 data class TimetableState(
@@ -20,5 +21,6 @@ data class TimetableState(
     val showSubstitutions: Boolean = true,
     val teacherAbsences: List<LabeledTeacherAbsences> = emptyList(),
     val substitutionStatus: SubstitutionStatus? = null,
+    val teacherReferences: Set<TeacherReference>? = null,
     val snackBarMessageEvent: StateEventWithContent<String> = consumed()
 )
