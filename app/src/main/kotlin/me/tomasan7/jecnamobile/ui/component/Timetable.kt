@@ -242,7 +242,7 @@ private fun LessonSpot(
                 // If the spot isn't split (or groups aren't known), keep original behavior.
                 if (lessonSpot.size <= 1) return@remember if (index == 0) raw else null
 
-                // For split lessons, try to route substitutions marked with 1/2 or 2/2 to the correct group.
+                // For split lessons, try to route substitutions marked with 1/2 or 2/2 or thirds to the correct group.
                 raw.extractGroupSubstitutionForLesson(lesson)
             }
 
@@ -271,46 +271,25 @@ private fun LessonSpot(
 private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
 {
     val raw = this
-    val idx1 = raw.indexOf("1/2")
-    val idx2 = raw.indexOf("2/2")
+    val markers = listOf("1/2", "2/2", "1/3", "2/3", "3/3")
+    val foundInText = markers.filter { raw.contains(it) }.sortedBy { raw.indexOf(it) }
 
     // No group markers ->  show on the first lesson only.
-    if (idx1 == -1 && idx2 == -1)
-        return if (lesson.group == null || lesson.group == "0") raw else null
+    if (foundInText.isEmpty())
+        return if (lesson.group == null || lesson.group == "0" || lesson.group == "") raw else null
     
-    val lessonGroup = lesson.group
+    val lessonGroup = lesson.group ?: return null
 
-    fun matchesGroup(marker: String): Boolean
-    {
-        if (lessonGroup == null) return false
-        return lessonGroup == marker || lessonGroup == marker.substringBefore('/')
-    }
+    // Find if the lesson matches any of the markers present in the text.
+    val myMarker = foundInText.find { m ->
+        lessonGroup == m || lessonGroup == m.substringBefore('/')
+    } ?: return null
 
-    // Both markers present: split into two chunks at the second marker boundary.
-    if (idx1 != -1 && idx2 != -1)
-    {
-        val firstIs1 = idx1 < idx2
-        val firstMarkerIndex = if (firstIs1) idx1 else idx2
-        val secondMarkerIndex = if (firstIs1) idx2 else idx1
+    val myMarkerIndex = foundInText.indexOf(myMarker)
+    val start = raw.indexOf(myMarker)
+    val end = if (myMarkerIndex + 1 < foundInText.size) raw.indexOf(foundInText[myMarkerIndex + 1]) else raw.length
 
-        val firstChunk = raw.substring(firstMarkerIndex, secondMarkerIndex).trim()
-        val secondChunk = raw.substring(secondMarkerIndex).trim()
-
-        return when {
-            firstIs1 && matchesGroup("1/2") -> firstChunk
-            firstIs1 && matchesGroup("2/2") -> secondChunk
-            !firstIs1 && matchesGroup("2/2") -> firstChunk
-            !firstIs1 && matchesGroup("1/2") -> secondChunk
-            else -> null
-        }
-    }
-
-    // Only one marker present.
-    if (idx1 != -1)
-        return if (matchesGroup("1/2")) raw.substring(idx1).trim() else null
-
-    // idx2 != -1
-    return if (matchesGroup("2/2")) raw.substring(idx2).trim() else null
+    return raw.substring(start, end).trim()
 }
 
 private data class SubstitutionOverrides(
@@ -342,8 +321,9 @@ private fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): Substi
     val lessonGroup = lesson.group ?: return null
 
     val marker = when {
-        lessonGroup == "1/2" || lessonGroup == "1" -> "1/2"
-        lessonGroup == "2/2" || lessonGroup == "2" -> "2/2"
+        lessonGroup == "1/2" || lessonGroup == "1" -> if (contains("1/3")) "1/3" else "1/2"
+        lessonGroup == "2/2" || lessonGroup == "2" -> if (contains("2/3")) "2/3" else "2/2"
+        lessonGroup == "3/3" || lessonGroup == "3" -> "3/3"
         else -> return null
     }
 
