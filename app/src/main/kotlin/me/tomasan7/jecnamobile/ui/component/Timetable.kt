@@ -37,9 +37,12 @@ fun Timetable(
     showSubstitutions: Boolean = true,
     teacherReferences: Set<TeacherReference>? = null,
     onTeacherClick: (TeacherReference) -> Unit = {},
-    onClassroomClick: (ClassroomReference) -> Unit = { }
+    onClassroomClick: (ClassroomReference) -> Unit = { },
+    isCurrentSchoolYear: Boolean = true
 )
 {
+    val effectiveShowSubstitutions = showSubstitutions && isCurrentSchoolYear
+
     val (mostLessonsInLessonSpotInEachDay, hasExpandedSubstitutionInDay) = remember(timetable) {
         timetable.run {
             val most = mutableMapOf<DayOfWeek, Int>()
@@ -54,9 +57,10 @@ fun Timetable(
                 {
                     if (lessonSpot.size > dayMost)
                         dayMost = lessonSpot.size
+                    
 
                     // Only expand the day's row if the substitution exists AND the spot is split (>1 lesson).
-                    if (lessonSpot.substitution != null && lessonSpot.size > 1)
+                    if (effectiveShowSubstitutions && lessonSpot.substitution != null && lessonSpot.size > 1)
                         dayHasExpandableSub = true
                 }
 
@@ -114,7 +118,7 @@ fun Timetable(
                             current = timetable.getCurrentLessonSpot() === lessonSpot,
                             next = timetable.getCurrentNextLessonSpot(takeEmpty = true) === lessonSpot,
                             hideClass = hideClass,
-                            showSubstitutions = showSubstitutions,
+                            showSubstitutions = effectiveShowSubstitutions,
                             breakWidth = breakWidth
                         )
                         HorizontalSpacer(breakWidth)
@@ -131,7 +135,7 @@ fun Timetable(
 
                 // Key recomposition to the spot substitution (and lesson) so changing the click updates the dialog.
                 key(clickedSpot.substitution, lesson) {
-                    val substitutionText = if (showSubstitutions)
+                    val substitutionText = if (effectiveShowSubstitutions)
                         clickedSpot.substitution?.extractGroupSubstitutionForLesson(lesson)
                     else null
 
