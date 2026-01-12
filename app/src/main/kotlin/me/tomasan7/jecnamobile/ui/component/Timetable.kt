@@ -58,8 +58,7 @@ fun Timetable(
                     if (lessonSpot.size > dayMost)
                         dayMost = lessonSpot.size
                     
-
-                    // Only expand the day's row if the substitution exists AND the spot is split (>1 lesson).
+                    
                     if (effectiveShowSubstitutions && lessonSpot.substitution != null && lessonSpot.size > 1)
                         dayHasExpandableSub = true
                 }
@@ -133,7 +132,7 @@ fun Timetable(
                 val lesson = payload.lesson
                 val clickedSpot = payload.lessonSpot
 
-                // Key recomposition to the spot substitution (and lesson) so changing the click updates the dialog.
+                
                 key(clickedSpot.substitution, lesson) {
                     val substitutionText = if (effectiveShowSubstitutions)
                         clickedSpot.substitution?.extractGroupSubstitutionForLesson(lesson)
@@ -155,7 +154,7 @@ fun Timetable(
                             ?: subjShort
                     }
 
-                    // Resolve teacher from API-provided teacher list by tag
+                    
                     val resolvedTeacherRef: TeacherReference? = rawOverrides?.teacherTag?.let { tag ->
                         teacherReferences
                             ?.firstOrNull { it.tag.equals(tag, ignoreCase = true) }
@@ -277,14 +276,12 @@ private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
     val raw = this
     val markers = listOf("1/2", "2/2", "1/3", "2/3", "3/3")
     val foundInText = markers.filter { raw.contains(it) }.sortedBy { raw.indexOf(it) }
-
-    // No group markers ->  show on the first lesson only.
+    
     if (foundInText.isEmpty())
         return if (lesson.group == null || lesson.group == "0" || lesson.group == "") raw else null
     
     val lessonGroup = lesson.group ?: return null
-
-    // Find if the lesson matches any of the markers present in the text.
+    
     val myMarker = foundInText.find { m ->
         lessonGroup == m || lessonGroup == m.substringBefore('/')
     } ?: return null
@@ -333,19 +330,16 @@ private fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): Substi
 
     val idx = indexOf(marker)
     if (idx == -1) return null
-
-    // Slice from marker onward so we don't accidentally parse earlier words.
+    
     val tail = substring(idx + marker.length).trim()
     if (tail.isBlank()) return null
-
-    // Tokenize by whitespace.
+    
     val rawParts = tail.split(Regex("\\s+")).filter { it.isNotBlank() }
     if (rawParts.isEmpty()) return null
 
     val subjectShort = rawParts.getOrNull(0)?.cleanSubstitutionToken()
     val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken()
-
-    // Teacher token might contain parentheses: Ku(Ka)+ -> Ku
+    
     val teacherToken = rawParts.getOrNull(2)?.cleanSubstitutionToken()
     val teacherTag = teacherToken?.substringBefore('(')?.cleanSubstitutionToken()
 
@@ -386,7 +380,8 @@ private fun Lesson(
         shape = shape,
         color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         onClick = onClick
-    ) {
+    )
+    {
         
         Box(Modifier.padding(horizontal = 3.dp, vertical = 2.dp)) {
             if (lesson.subjectName.short != null)
@@ -428,7 +423,8 @@ private fun DayLabel(
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).manipulate(1.5f),
         shadowElevation = ElevationLevel.level1,
         shape = RoundedCornerShape(5.dp)
-    ) {
+    )
+    {
         Box(Modifier.padding(4.dp), contentAlignment = Alignment.Center) {
             Text(text = day, fontWeight = FontWeight.Bold)
         }
@@ -469,11 +465,12 @@ private fun LessonDialogContent(
                 Text(stringResource(R.string.close))
             }
         }
-    ) {
+    )
+    {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Teacher: substitution teacher overrides original teacher.
+        )
+        {
             if (!substitutionTeacherFull.isNullOrBlank() && !substitutionTeacherTag.isNullOrBlank())
             {
                 DialogRow(
@@ -498,8 +495,6 @@ private fun LessonDialogContent(
                         onClick = { onTeacherClick(TeacherReference(teacher.full, teacher.short!!)) }
                     )
             }
-
-            // Classroom: substitution classroom overrides original classroom.
             if (!substitutionClassroom.isNullOrBlank())
             {
                 DialogRow(
