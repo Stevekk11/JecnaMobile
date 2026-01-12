@@ -18,7 +18,6 @@ import io.github.tomhula.jecnaapi.CanteenClient
 import io.github.tomhula.jecnaapi.JecnaClient
 import io.github.tomhula.jecnaapi.data.canteen.DayMenu
 import io.github.tomhula.jecnaapi.data.canteen.ExchangeItem
-import io.github.tomhula.jecnaapi.data.canteen.ItemDescription
 import io.github.tomhula.jecnaapi.data.canteen.MenuItem
 import io.github.tomhula.jecnaapi.parser.ParseException
 import io.ktor.util.network.UnresolvedAddressException
@@ -368,8 +367,13 @@ class CanteenViewModel @Inject constructor(
         else                          -> showMessage(default)
     }
 
-    fun showMessage(@StringRes message: Int) =
+    fun showMessage(@StringRes message: Int)
+    {
+        if (TestAccountManager.isTestAccountActive)
+            return
+
         changeUiState(snackBarMessageEvent = triggered(appContext.getString(message)))
+    }
 
     fun loadMoreDayMenus(count: Int)
     {

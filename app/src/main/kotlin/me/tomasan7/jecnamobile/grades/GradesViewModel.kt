@@ -2,6 +2,7 @@ package me.tomasan7.jecnamobile.grades
 
 import android.content.Context
 import android.content.IntentFilter
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -34,6 +35,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import me.tomasan7.jecnamobile.testdata.TestAccountManager
 
 @HiltViewModel
 class GradesViewModel @Inject constructor(
@@ -49,6 +51,9 @@ class GradesViewModel @Inject constructor(
     private val loginBroadcastReceiver = createBroadcastReceiver { _, intent ->
         val first = intent.getBooleanExtra(JecnaMobileApplication.SUCCESSFUL_LOGIN_FIRST_EXTRA, false)
 
+        if (TestAccountManager.isTestAccountActive)
+            return@createBroadcastReceiver
+
         if (loadGradesJob == null || loadGradesJob!!.isCompleted)
         {
             if (!first)
@@ -61,7 +66,7 @@ class GradesViewModel @Inject constructor(
     init
     {
         loadCache()
-        if (jecnaClient.lastSuccessfulLoginTime != null)
+        if (!TestAccountManager.isTestAccountActive && jecnaClient.lastSuccessfulLoginTime != null)
             loadReal()
     }
 
@@ -119,6 +124,9 @@ class GradesViewModel @Inject constructor(
 
     private fun loadReal()
     {
+        if (TestAccountManager.isTestAccountActive)
+            return
+
         loadGradesJob?.cancel()
 
         changeUiState(loading = true)
@@ -139,6 +147,9 @@ class GradesViewModel @Inject constructor(
             }
             catch (e: UnresolvedAddressException)
             {
+                if (TestAccountManager.isTestAccountActive)
+                    return@launch
+
                 if (uiState.lastUpdateTimestamp != null && uiState.isCache)
                     changeUiState(snackBarMessageEvent = triggered(getOfflineMessage()!!))
                 else
@@ -153,7 +164,7 @@ class GradesViewModel @Inject constructor(
             }
             catch (e: Exception)
             {
-                changeUiState(snackBarMessageEvent = triggered(appContext.getString(R.string.grade_load_error)))
+                showError(R.string.grade_load_error)
                 e.printStackTrace()
             }
             finally
@@ -256,6 +267,13 @@ class GradesViewModel @Inject constructor(
             loadingNotification = loadingNotification,
             dialogNotification = dialogNotification
         )
+    }
+
+    private fun showError(@StringRes messageId: Int)
+    {
+        if (TestAccountManager.isTestAccountActive)
+            return
+        changeUiState(snackBarMessageEvent = triggered(appContext.getString(messageId)))
     }
 
     companion object

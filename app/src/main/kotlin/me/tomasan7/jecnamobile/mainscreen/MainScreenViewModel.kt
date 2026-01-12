@@ -53,12 +53,6 @@ class MainScreenViewModel @Inject constructor(
 
     fun tryLogin()
     {
-        if (TestAccountManager.isTestAccountActive)
-        {
-            broadcastSuccessfulLogin(false)
-            return
-        }
-
         val hasBeenLoggedIn = jecnaClient.lastSuccessfulLoginTime != null
         val auth = jecnaClient.autoLoginAuth ?: authRepository.get()
 
@@ -68,18 +62,38 @@ class MainScreenViewModel @Inject constructor(
             return
         }
 
+        // If saved credentials are the demo account, don't hit the real network.
+        if (auth.username == "test" && auth.password == "test123")
+        {
+            TestAccountManager.setTestAccount(auth)
+            broadcastSuccessfulLogin(!hasBeenLoggedIn)
+            return
+        }
+
+        // If test account is already active, also skip real login.
+        if (TestAccountManager.isTestAccountActive)
+        {
+            broadcastSuccessfulLogin(!hasBeenLoggedIn)
+            return
+        }
+
         viewModelScope.launch {
             val loginResult = try
             {
                 jecnaClient.login(auth).also {
                     if (!it)
-                        Toast.makeText(appContext, R.string.login_error_credentials_saved, Toast.LENGTH_SHORT).show()
+                        if (!TestAccountManager.isTestAccountActive)
+                            Toast.makeText(appContext, R.string.login_error_credentials_saved, Toast.LENGTH_SHORT).show()
                 }
             }
             /* This method (tryLogin()) should only run, when internet is available, but if it fails anyway,
             * just leave it as is and try again on new broadcast. */
-            catch (e: UnresolvedAddressException)
+            catch (_: UnresolvedAddressException)
             {
+                // In test mode, never block users with connectivity/login errors.
+                if (TestAccountManager.isTestAccountActive)
+                    broadcastSuccessfulLogin(!hasBeenLoggedIn)
+
                 return@launch
             }
             catch (e: CancellationException)
@@ -88,7 +102,9 @@ class MainScreenViewModel @Inject constructor(
             }
             catch (e: Exception)
             {
-                Toast.makeText(appContext, R.string.login_error_unknown, Toast.LENGTH_SHORT).show()
+                if (!TestAccountManager.isTestAccountActive)
+                    Toast.makeText(appContext, R.string.login_error_unknown, Toast.LENGTH_SHORT).show()
+
                 e.printStackTrace()
                 false
             }
