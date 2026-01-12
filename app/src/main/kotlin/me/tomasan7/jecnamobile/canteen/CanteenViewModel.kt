@@ -177,6 +177,7 @@ class CanteenViewModel @Inject constructor(
 
     fun orderExchangeItem(item: ExchangeItem)
     {
+        if (TestAccountManager.isTestAccountActive) return
         if (uiState.orderInProcess)
             return
 
@@ -372,6 +373,7 @@ class CanteenViewModel @Inject constructor(
 
     fun loadMoreDayMenus(count: Int)
     {
+        if (TestAccountManager.isTestAccountActive) return
         if (uiState.loading)
             return
 

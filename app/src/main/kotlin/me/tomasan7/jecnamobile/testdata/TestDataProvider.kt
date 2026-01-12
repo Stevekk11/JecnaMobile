@@ -21,6 +21,14 @@ import io.github.tomhula.jecnaapi.data.attendance.Attendance
 import io.github.tomhula.jecnaapi.data.attendance.AttendanceType
 import io.github.tomhula.jecnaapi.data.attendance.AttendancesPage
 import java.time.Month
+import io.github.tomhula.jecnaapi.data.student.Student
+import io.github.tomhula.jecnaapi.data.student.Locker
+import io.github.tomhula.jecnaapi.data.schoolStaff.Teacher
+import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
+import io.github.tomhula.jecnaapi.data.schoolStaff.TeachersPage
+import io.github.tomhula.jecnaapi.data.classroom.Classroom
+import io.github.tomhula.jecnaapi.data.classroom.ClassroomReference
+import io.github.tomhula.jecnaapi.data.classroom.ClassroomPage
 
 /**
  * Provides realistic mock data for the test account "test"/"test123".
@@ -55,7 +63,7 @@ object TestDataProvider {
         builder.addSubject(Subject(
             name = Name("Anglický jazyk", "AJ"),
             grades = englishGradesBuilder.build(),
-            finalGrade = FinalGrade.Grade(value = 2)
+            finalGrade = FinalGrade.Grade(value = 3)
         ))
 
         // Subject 3: Tělesná výchova (3 grades, mostly small)
@@ -172,14 +180,7 @@ object TestDataProvider {
         timetableBuilder.addLessonSpot(DayOfWeek.FRIDAY, LessonSpot(listOf(mathematicsLesson), 1))
         timetableBuilder.addLessonSpot(DayOfWeek.FRIDAY, LessonSpot(emptyList(), 1))
         timetableBuilder.addLessonSpot(DayOfWeek.FRIDAY, LessonSpot(emptyList(), 1))
-
-        // Saturday and Sunday are empty
-        for (day in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)) {
-            for (period in periods) {
-                timetableBuilder.addLessonSpot(day, LessonSpot(emptyList(), 1))
-            }
-        }
-
+        
         val pageBuilder = TimetablePage.builder()
         pageBuilder.setTimetable(timetableBuilder.build())
         pageBuilder.setSelectedSchoolYear(SchoolYear.current())
@@ -188,43 +189,71 @@ object TestDataProvider {
         return pageBuilder.build()
     }
 
-    fun generateNewsPage(): NewsPage {
-        val builder = NewsPage.builder()
+    fun generateStudent(): Student {
+        return Student(
+            fullName = "Jan Testovací",
+            username = "test",
+            schoolMail = "test@spsejecna.cz",
+            privateMail = "jan.test@gmail.com",
+            phoneNumbers = listOf("+420 123 456 789"),
+            className = "4.A",
+            classGroups = "1/2, 2/2",
+            classRegistryId = 15,
+            birthDate = LocalDate.of(2005, 5, 20),
+            birthPlace = "Praha",
+            permanentAddress = "Nerudova 15, Praha 1",
+            age = 18
+        )
+    }
 
-        builder.addArticle(Article(
-            title = "Zahájení školního roku",
-            content = "Všechny studenty vítáme na začátku nového školního roku. Přejeme vám úspěšný a produktivní rok plný nových poznatků a přátelství.",
-            htmlContent = "<p>Všechny studenty vítáme na začátku nového školního roku. Přejeme vám úspěšný a produktivní rok plný nových poznatků a přátelství.</p>",
-            date = LocalDate.now().minusDays(30),
-            author = "Školitel",
-            schoolOnly = false,
-            files = emptyList(),
-            images = emptyList()
-        ))
+    fun generateLocker(): Locker {
+        return Locker("123", "v šatně vlevo")
+    }
 
-        builder.addArticle(Article(
-            title = "Podzimní sportovní den",
-            content = "Ve čtvrtek 15. září se koná tradiční podzimní sportovní den. Všechny třídy se zúčastní atletických soutěží. Přineste si sportovní oblečení a boty!",
-            htmlContent = "<p>Ve čtvrtek 15. září se koná tradiční podzimní sportovní den. Všechny třídy se zúčastní atletických soutěží. Přineste si sportovní oblečení a boty!</p>",
-            date = LocalDate.now().minusDays(15),
-            author = "Tělocvikny",
-            schoolOnly = false,
-            files = emptyList(),
-            images = emptyList()
-        ))
-
-        builder.addArticle(Article(
-            title = "Změna v jídelníčku kantýny",
-            content = "Od pondělí 18. září bude v naší kantýně nový jídelníček. Více informací najdete na nástěnce nebo v aplikaci.",
-            htmlContent = "<p>Od pondělí 18. září bude v naší kantýně nový jídelníček. Více informací najdete na nástěnce nebo v aplikaci.</p>",
-            date = LocalDate.now().minusDays(5),
-            author = "Správce kantýny",
-            schoolOnly = false,
-            files = emptyList(),
-            images = emptyList()
-        ))
-
+    fun generateTeachersPage(): TeachersPage {
+        val builder = TeachersPage.builder()
+        builder.addTeacherReference(TeacherReference("Novák Jan", "No"))
+        builder.addTeacherReference(TeacherReference("Kučerová Lenka", "Ku"))
+        builder.addTeacherReference(TeacherReference("Svoboda Pavel", "Sv"))
         return builder.build()
+    }
+
+            fun generateTeacher(tag: String): Teacher {
+                return when (tag) {
+                    "No" -> Teacher(
+                        fullName = "Jan Novák",
+                        username = "novak",
+                        schoolMail = "novak@spsejecna.cz",
+                        tag = "No",
+                        cabinet = "125"
+                    )
+                    "Ku" -> Teacher(
+                        fullName = "Lenka Kučerová",
+                        username = "kucerova",
+                        schoolMail = "kucerova@spsejecna.cz",
+                        tag = "Ku",
+                        cabinet = "213"
+                    )
+                    else -> Teacher(
+                        fullName = "Pavel Svoboda",
+                        username = "svoboda",
+                        schoolMail = "svoboda@spsejecna.cz",
+                        tag = "Sv",
+                        cabinet = "305"
+                    )
+                }
+            }
+
+    fun generateClassroomsPage(): ClassroomPage {
+        return ClassroomPage(setOf(
+            ClassroomReference("125", "125"),
+            ClassroomReference("213", "213"),
+            ClassroomReference("305", "305")
+        ))
+    }
+
+    fun generateClassroom(ref: ClassroomReference): Classroom {
+        return Classroom("Učebna pro teoretickou výuku", "2. patro", "Třída 4.C")
     }
 
     fun generateMenuPage(): MenuPage {

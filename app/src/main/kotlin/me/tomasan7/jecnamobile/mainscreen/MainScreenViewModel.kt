@@ -27,6 +27,7 @@ import io.github.tomhula.jecnaapi.web.AuthenticationException
 import me.tomasan7.jecnamobile.JecnaMobileApplication
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.login.AuthRepository
+import me.tomasan7.jecnamobile.testdata.TestAccountManager
 import javax.inject.Inject
 
 @HiltViewModel
@@ -52,6 +53,12 @@ class MainScreenViewModel @Inject constructor(
 
     fun tryLogin()
     {
+        if (TestAccountManager.isTestAccountActive)
+        {
+            broadcastSuccessfulLogin(false)
+            return
+        }
+
         val hasBeenLoggedIn = jecnaClient.lastSuccessfulLoginTime != null
         val auth = jecnaClient.autoLoginAuth ?: authRepository.get()
 
@@ -114,22 +121,29 @@ class MainScreenViewModel @Inject constructor(
 
     fun logout()
     {
-        runBlocking {
-            launch {
-                try
-                {
-                    jecnaClient.logout()
+        if (TestAccountManager.isTestAccountActive)
+        {
+            TestAccountManager.clearTestAccount()
+        }
+        else
+        {
+            runBlocking {
+                launch {
+                    try
+                    {
+                        jecnaClient.logout()
+                    }
+                    // Already logged out
+                    catch (_: AuthenticationException) {}
                 }
-                // Already logged out
-                catch (_: AuthenticationException) {}
-            }
-            launch {
-                try
-                {
-                    canteenClient.logout()
+                launch {
+                    try
+                    {
+                        canteenClient.logout()
+                    }
+                    // Already logged out
+                    catch (_: AuthenticationException) {}
                 }
-                // Already logged out
-                catch (_: AuthenticationException) {}
             }
         }
 

@@ -9,9 +9,8 @@ class NewsRepositoryImpl @Inject constructor(
     private val client: JecnaClient
 ) : NewsRepository
 {
-    override suspend fun getNewsPage() = 
-        if (TestAccountManager.isTestAccountActive) TestDataProvider.generateNewsPage()
-        else client.getNewsPage()
+    override suspend fun getNewsPage() =
+        client.getNewsPage()
 }
 
 
