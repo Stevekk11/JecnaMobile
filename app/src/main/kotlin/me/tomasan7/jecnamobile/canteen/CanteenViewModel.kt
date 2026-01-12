@@ -34,6 +34,8 @@ import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.login.AuthRepository
 import me.tomasan7.jecnamobile.util.createBroadcastReceiver
 import me.tomasan7.jecnamobile.util.settingsDataStore
+import me.tomasan7.jecnamobile.testdata.TestAccountManager
+import me.tomasan7.jecnamobile.testdata.TestDataProvider
 import java.time.DayOfWeek
 import java.time.LocalDate
 import javax.inject.Inject
@@ -71,6 +73,11 @@ class CanteenViewModel @Inject constructor(
 
     private fun loginCanteenClient()
     {
+        if (TestAccountManager.isTestAccountActive)
+        {
+            loadMenu()
+            return
+        }
         loginInProcess = true
         loginjob = viewModelScope.launch {
             changeUiState(loading = true)
@@ -121,6 +128,7 @@ class CanteenViewModel @Inject constructor(
 
     fun orderMenuItem(menuItem: MenuItem, dayMenuDate: LocalDate)
     {
+        if (TestAccountManager.isTestAccountActive) return
         if (uiState.orderInProcess)
             return
 
@@ -205,6 +213,7 @@ class CanteenViewModel @Inject constructor(
 
     fun putMenuItemOnExchange(menuItem: MenuItem, dayMenuDate: LocalDate)
     {
+        if (TestAccountManager.isTestAccountActive) return
         if (uiState.orderInProcess)
             return
 
@@ -245,6 +254,17 @@ class CanteenViewModel @Inject constructor(
 
     fun loadMenu()
     {
+        if (TestAccountManager.isTestAccountActive)
+        {
+            val menuPage = TestDataProvider.generateMenuPage()
+            changeUiState(
+                menu = menuPage.menu.toSet(),
+                credit = menuPage.credit,
+                loading = false
+            )
+            return
+        }
+
         changeUiState(loading = true)
 
         loadMenuJob?.cancel()
@@ -296,6 +316,11 @@ class CanteenViewModel @Inject constructor(
 
     fun fetchExchange()
     {
+        if (TestAccountManager.isTestAccountActive)
+        {
+            changeUiState(loading = false, exchange = emptyList())
+            return
+        }
         changeUiState(loading = true)
 
         viewModelScope.launch {

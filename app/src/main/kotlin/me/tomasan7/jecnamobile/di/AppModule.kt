@@ -22,3 +22,6 @@ internal object AppModule
     @Singleton
     fun provideCanteenClient() = CanteenClient(autoLogin = true, userAgent = "JM")
 }
+
+
+

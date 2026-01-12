@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import io.github.tomhula.jecnaapi.CanteenClient
 import io.github.tomhula.jecnaapi.JecnaClient
 import io.github.tomhula.jecnaapi.web.Auth
+import me.tomasan7.jecnamobile.testdata.TestAccountManager
 import javax.inject.Inject
 
 @HiltViewModel
@@ -75,10 +76,22 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             val result = try
             {
-                if (jecnaClient.login(auth))
+                // Check if this is a test account
+                val isTestAccount = username == "test" && password == "test123"
+                
+                if (isTestAccount) {
+                    
+                    TestAccountManager.setTestAccount(auth)
                     LoginResult.Success
-                else
-                    LoginResult.Error.InvalidCredentials
+                } else {
+                    
+                    TestAccountManager.clearTestAccount()
+                    
+                    if (jecnaClient.login(auth))
+                        LoginResult.Success
+                    else
+                        LoginResult.Error.InvalidCredentials
+                }
             }
             catch (e: UnresolvedAddressException)
             {
@@ -142,3 +155,5 @@ class LoginViewModel @Inject constructor(
         )
     }
 }
+
+
