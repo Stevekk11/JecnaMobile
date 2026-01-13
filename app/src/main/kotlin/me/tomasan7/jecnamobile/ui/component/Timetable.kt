@@ -25,6 +25,9 @@ import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
 import io.github.tomhula.jecnaapi.data.timetable.*
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.ui.ElevationLevel
+import me.tomasan7.jecnamobile.util.SubstitutionOverrides
+import me.tomasan7.jecnamobile.util.extractGroupSubstitutionForLesson
+import me.tomasan7.jecnamobile.util.extractSubstitutionOverridesForLesson
 import me.tomasan7.jecnamobile.util.getWeekDayName
 import me.tomasan7.jecnamobile.util.manipulate
 import java.time.DayOfWeek
@@ -230,126 +233,50 @@ private fun LessonSpot(
         lessonSpotModifier = lessonSpotModifier.fillMaxHeight()
 
     Column(lessonSpotModifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        lessonSpot.forEachIndexed { index, lesson ->
-            /* If there is < 2 lessons, they are stretched to  */
-            var lessonModifier = Modifier.fillMaxWidth()
-            lessonModifier = if (lessonSpot.size <= 2)
-                lessonModifier.weight(1f)
-            else
-                lessonModifier.height(50.dp)
-
-            val substitutionForLesson = remember(showSubstitutions, lessonSpot.substitution, lessonSpot.size, index, lesson.group) {
-                if (!showSubstitutions) return@remember null
-                val raw = lessonSpot.substitution ?: return@remember null
-
-                // If the spot isn't split (or groups aren't known), keep original behavior.
-                if (lessonSpot.size <= 1) return@remember if (index == 0) raw else null
-
-                // For split lessons, try to route substitutions marked with 1/2 or 2/2 or thirds to the correct group.
-                raw.extractGroupSubstitutionForLesson(lesson)
-            }
-
+        if (showSubstitutions && lessonSpot.substitution?.lowercase()?.contains("spoj") == true && lessonSpot.size > 1) {
+            val mergedLesson = lessonSpot.first().copy(group = "spoj")
             Lesson(
-                modifier = lessonModifier,
-                onClick = { onLessonClick(lesson) },
-                lesson = lesson,
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                onClick = { onLessonClick(mergedLesson) },
+                lesson = mergedLesson,
                 current = current,
                 next = next,
                 hideClass = hideClass,
-                substitution = substitutionForLesson
+                substitution = lessonSpot.substitution,
+                isSpoj = true
             )
+        } else {
+            lessonSpot.forEachIndexed { index, lesson ->
+                /* If there is < 2 lessons, they are stretched to  */
+                var lessonModifier = Modifier.fillMaxWidth()
+                lessonModifier = if (lessonSpot.size <= 2)
+                    lessonModifier.weight(1f)
+                else
+                    lessonModifier.height(50.dp)
+
+                val substitutionForLesson = remember(showSubstitutions, lessonSpot.substitution, lessonSpot.size, index, lesson.group) {
+                    if (!showSubstitutions) return@remember null
+                    val raw = lessonSpot.substitution ?: return@remember null
+
+                    // If the spot isn't split (or groups aren't known), keep original behavior.
+                    if (lessonSpot.size <= 1) return@remember if (index == 0) raw else null
+
+                    // For split lessons, try to route substitutions marked with 1/2 or 2/2 or thirds to the correct group.
+                    raw.extractGroupSubstitutionForLesson(lesson)
+                }
+
+                Lesson(
+                    modifier = lessonModifier,
+                    onClick = { onLessonClick(lesson) },
+                    lesson = lesson,
+                    current = current,
+                    next = next,
+                    hideClass = hideClass,
+                    substitution = substitutionForLesson
+                )
+            }
         }
     }
-}
-
-/**
- * Extracts the part of a substitution text that belongs to the given [lesson] when the lesson spot is split by group.
- *
- * Rules:
- * - If the text contains both "1/2" and "2/2", it will be split at the first occurrence of the second marker,
- *   and each chunk is routed to its respective group.
- * - If it contains only one marker, it will be shown only on the matching group.
- * - If it contains no markers (or group is unknown), we fallback to showing it on the first lesson (legacy behavior).
- */
-private fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
-{
-    val raw = this
-    val markers = listOf("1/2", "2/2", "1/3", "2/3", "3/3")
-    val foundInText = markers.filter { raw.contains(it) }.sortedBy { raw.indexOf(it) }
-    
-    if (foundInText.isEmpty())
-        return if (lesson.group == null || lesson.group == "0" || lesson.group == "") raw else null
-    
-    val lessonGroup = lesson.group ?: return null
-    
-    val myMarker = foundInText.find { m ->
-        lessonGroup == m || lessonGroup == m.substringBefore('/')
-    } ?: return null
-
-    val myMarkerIndex = foundInText.indexOf(myMarker)
-    val start = raw.indexOf(myMarker)
-    val end = if (myMarkerIndex + 1 < foundInText.size) raw.indexOf(foundInText[myMarkerIndex + 1]) else raw.length
-
-    return raw.substring(start, end).trim()
-}
-
-private data class SubstitutionOverrides(
-    val subjectFull: String? = null,
-    val classroom: String? = null,
-    val teacherFull: String? = null,
-    val teacherTag: String? = null,
-)
-
-private fun String.cleanSubstitutionToken(): String =
-    trim()
-        .trimEnd(',', ';', '.', '+')
-
-/**
- * From substitution text, extract the substitution subject(short) + classroom + substituting teacher(tag)
- * for the given lesson.
- *
- * Examples:
- *  - "2/2 CIT 19c Ku(Ka)+" -> subjectShort=CIT, classroom=19c, teacherTag=Ku
- *  - "1/2 TP 27 (Ms) odpadá..., 2/2 TP 23 Ma(Pe)+" -> for group 2: subjectShort=TP, classroom=23, teacherTag=Ma
- *
- * Rules (per requirement):
- *  - word right after group marker is subject short
- *  - next word is classroom
- *  - next word is substituting teacher (ignore anything in parentheses, which is the missing teacher)
- */
-private fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): SubstitutionOverrides?
-{
-    val lessonGroup = lesson.group ?: return null
-
-    val marker = when {
-        lessonGroup == "1/2" || lessonGroup == "1" -> if (contains("1/3")) "1/3" else "1/2"
-        lessonGroup == "2/2" || lessonGroup == "2" -> if (contains("2/3")) "2/3" else "2/2"
-        lessonGroup == "3/3" || lessonGroup == "3" -> "3/3"
-        else -> return null
-    }
-
-    val idx = indexOf(marker)
-    if (idx == -1) return null
-    
-    val tail = substring(idx + marker.length).trim()
-    if (tail.isBlank()) return null
-    
-    val rawParts = tail.split(Regex("\\s+")).filter { it.isNotBlank() }
-    if (rawParts.isEmpty()) return null
-
-    val subjectShort = rawParts.getOrNull(0)?.cleanSubstitutionToken()
-    val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken()
-    
-    val teacherToken = rawParts.getOrNull(2)?.cleanSubstitutionToken()
-    val teacherTag = teacherToken?.substringBefore('(')?.cleanSubstitutionToken()
-
-    if (subjectShort.isNullOrBlank() && classroom.isNullOrBlank() && teacherTag.isNullOrBlank()) return null
-
-    return SubstitutionOverrides(
-        subjectFull = subjectShort,
-        classroom = classroom,
-        teacherTag = teacherTag
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -361,15 +288,18 @@ private fun Lesson(
     current: Boolean = false,
     next: Boolean = false,
     hideClass: Boolean = false,
-    substitution: String? = null
+    substitution: String? = null,
+    isSpoj: Boolean = false
 )
 {
     val shape = RoundedCornerShape(5.dp)
     val substitutionLower = substitution?.lowercase()
     val greenOutline = Color(0xFF4CAF50)
+    val yellowOutline = Color(0xFFFFC107)
     val borderColor = when {
         substitutionLower == null -> if (next) MaterialTheme.colorScheme.inverseSurface else null
         substitutionLower.contains("0") || substitutionLower.contains("odpadá") -> greenOutline
+        substitutionLower.contains("spoj") -> yellowOutline
         else -> MaterialTheme.colorScheme.error
     }
     val outlinedModifier = if (borderColor != null) modifier.border(1.dp, borderColor, shape) else modifier
@@ -389,12 +319,25 @@ private fun Lesson(
                     lesson.subjectName.short!!,
                     Modifier.align(Alignment.Center),
                     fontWeight = FontWeight.Bold,
-                    textDecoration = if (substitution != null) TextDecoration.LineThrough else null
+                    textDecoration = if (substitution != null && !isSpoj) TextDecoration.LineThrough else null
                 )
             if (!hideClass && lesson.clazz != null)
                 Text(lesson.clazz!!, Modifier.align(Alignment.BottomStart))
-            if (lesson.teacherName?.short != null)
+            if (lesson.teacherName?.short != null && !isSpoj)
                 Text(lesson.teacherName!!.short!!, Modifier.align(Alignment.TopStart))
+            // Show missing teacher with strikethrough for spoj
+            if (isSpoj && substitution != null) {
+                val regex = Regex("(\\w+)\\(([^)]+)\\)")
+                val match = regex.find(substitution)
+                if (match != null) {
+                    Text(
+                        text = match.groupValues[2] + " | " + match.groupValues[1],
+                        modifier = Modifier.align(Alignment.TopStart),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
+                }
+            }
             if (lesson.classroom != null)
                 Text(lesson.classroom!!, Modifier.align(Alignment.TopEnd))
             if (lesson.group != null)
