@@ -55,15 +55,18 @@ fun Timetable(
             {
                 var dayMost = 0
                 var dayHasExpandableSub = false
+                
+                for (lessonSpot in getLessonSpotsForDay(day)!!) {
+                    if (lessonSpot.size > dayMost) dayMost = lessonSpot.size
 
-                for (lessonSpot in getLessonSpotsForDay(day)!!)
-                {
-                    if (lessonSpot.size > dayMost)
-                        dayMost = lessonSpot.size
-                    
-                    
-                    if (effectiveShowSubstitutions && lessonSpot.substitution != null && lessonSpot.size > 1)
+                    val isSpoj = lessonSpot.substitution?.lowercase()?.contains("spoj") == true
+
+                    if (effectiveShowSubstitutions &&
+                        lessonSpot.substitution != null &&
+                        lessonSpot.size > 1 &&
+                        !isSpoj) {
                         dayHasExpandableSub = true
+                    }
                 }
 
                 most[day] = dayMost
@@ -290,19 +293,29 @@ private fun Lesson(
     hideClass: Boolean = false,
     substitution: String? = null,
     isSpoj: Boolean = false
-)
-{
+) {
     val shape = RoundedCornerShape(5.dp)
     val substitutionLower = substitution?.lowercase()
+    
     val greenOutline = Color(0xFF4CAF50)
     val yellowOutline = Color(0xFFFFC107)
     val borderColor = when {
         substitutionLower == null -> if (next) MaterialTheme.colorScheme.inverseSurface else null
-        substitutionLower.contains("0") || substitutionLower.contains("odpadá") -> greenOutline
+        substitutionLower.contains("0") || substitutionLower.contains("odpadá") || substitutionLower.contains("oběd") -> greenOutline
         substitutionLower.contains("spoj") -> yellowOutline
         else -> MaterialTheme.colorScheme.error
     }
+    
+    val overrides = remember(substitution, lesson) {
+        if (substitution == null || isSpoj) null
+        else substitution.extractSubstitutionOverridesForLesson(lesson)
+    }
+
+    val displayClassroom = overrides?.classroom ?: lesson.classroom
+    val isRoomChanged = overrides?.classroom != null && overrides.classroom != lesson.classroom
+
     val outlinedModifier = if (borderColor != null) modifier.border(1.dp, borderColor, shape) else modifier
+
     Surface(
         modifier = outlinedModifier,
         tonalElevation = ElevationLevel.level2,
@@ -310,47 +323,89 @@ private fun Lesson(
         shape = shape,
         color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         onClick = onClick
-    )
-    {
-        
+    ) {
         Box(Modifier.padding(horizontal = 3.dp, vertical = 2.dp)) {
-            if (lesson.subjectName.short != null)
+
+            /* SUBJECT NAME */
+            if (lesson.subjectName.short != null) {
                 Text(
-                    lesson.subjectName.short!!,
-                    Modifier.align(Alignment.Center),
+                    text = lesson.subjectName.short!!,
+                    modifier = Modifier.align(Alignment.Center),
                     fontWeight = FontWeight.Bold,
                     textDecoration = if (substitution != null && !isSpoj) TextDecoration.LineThrough else null
                 )
-            if (!hideClass && lesson.clazz != null)
-                Text(lesson.clazz!!, Modifier.align(Alignment.BottomStart))
-            if (lesson.teacherName?.short != null && !isSpoj)
-                Text(lesson.teacherName!!.short!!, Modifier.align(Alignment.TopStart))
-            // Show missing teacher with strikethrough for spoj
+            }
+
+            /* CLASSROOM (Top Right) */
+            if (displayClassroom != null) {
+                Text(
+                    text = displayClassroom,
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    // Highlight red if the room is different from the original
+                    color = if (isRoomChanged) MaterialTheme.colorScheme.error else Color.Unspecified,
+                    fontWeight = if (isRoomChanged) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 12.sp
+                )
+            }
+
+            /* TEACHER (Top Left) */
             if (isSpoj && substitution != null) {
+                // Extract "Missing(Subbing)" pattern for merged lessons
                 val regex = Regex("(\\w+)\\(([^)]+)\\)")
                 val match = regex.find(substitution)
                 if (match != null) {
                     Text(
-                        text = match.groupValues[2] + " | " + match.groupValues[1],
+                        text = "${match.groupValues[2]} | ${match.groupValues[1]}",
                         modifier = Modifier.align(Alignment.TopStart),
                         color = MaterialTheme.colorScheme.error,
+                        fontSize = 11.sp,
+                        lineHeight = 11.sp
+                    )
+                }
+            } else {
+                val displayTeacher = overrides?.teacherTag ?: lesson.teacherName?.short
+                if (displayTeacher != null) {
+                    Text(
+                        text = displayTeacher,
+                        modifier = Modifier.align(Alignment.TopStart),
+                        color = if (overrides?.teacherTag != null) MaterialTheme.colorScheme.error else Color.Unspecified,
                         fontSize = 12.sp
                     )
                 }
             }
-            if (lesson.classroom != null)
-                Text(lesson.classroom!!, Modifier.align(Alignment.TopEnd))
-            if (lesson.group != null)
-                Text(lesson.group!!, Modifier.align(Alignment.BottomEnd), fontSize = 10.sp)
-            if (substitution != null)
+
+            /* CLASS (Bottom Left) */
+            if (!hideClass && lesson.clazz != null) {
+                Text(
+                    text = lesson.clazz!!,
+                    modifier = Modifier.align(Alignment.BottomStart),
+                    fontSize = 10.sp
+                )
+            }
+
+            /* GROUP (Bottom Right) */
+            if (lesson.group != null) {
+                Text(
+                    text = lesson.group!!,
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    fontSize = 10.sp
+                )
+            }
+
+            /* SUBSTITUTION FOOTNOTE (Bottom Left/Center) */
+            if (substitution != null) {
                 Text(
                     text = substitution,
-                    modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 75.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(bottom = if (!hideClass && lesson.clazz != null) 12.dp else 0.dp)
+                        .widthIn(max = 85.dp),
                     fontSize = 9.sp,
                     textAlign = TextAlign.Left,
                     color = MaterialTheme.colorScheme.error,
                     lineHeight = 10.sp,
                 )
+            }
         }
     }
 }

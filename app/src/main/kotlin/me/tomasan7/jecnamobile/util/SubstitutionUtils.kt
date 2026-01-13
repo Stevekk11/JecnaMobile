@@ -58,36 +58,35 @@ internal fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
  *  - next word is substituting teacher (ignore anything in parentheses, which is the missing teacher)
  */
 internal fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): SubstitutionOverrides? {
+    // 1. Define keywords that should skip override parsing (Cancellations/Special events)
+    val skipKeywords = listOf("odpadá", "0", "oběd")
+    if (skipKeywords.any { this.contains(it, ignoreCase = true) }) {
+        return null
+    }
+
     val tail = if (lesson.group == null) {
-        // For non-split lessons, use the entire string
-        if(this.contains("odpadá") || this.contains("0")) {
-            return null
-        }
         this.trim()
     } else {
-        val marker = when {
-            lesson.group == "1/2" || lesson.group == "1" -> if (contains("1/3")) "1/3" else "1/2"
-            lesson.group == "2/2" || lesson.group == "2" -> if (contains("2/3")) "2/3" else "2/2"
-            lesson.group == "3/3" || lesson.group == "3" -> "3/3"
-            else -> return null
-        }
-        val idx = indexOf(marker)
-        if (idx == -1) return null
-        substring(idx + marker.length).trim()
+        // Handle all fractional markers seen in the image (1/2, 1/3, 2/3, etc.)
+        val markers = listOf("1/2", "2/2", "1/3", "2/3", "3/3")
+        val foundMarker = markers.find { this.contains(it) } ?: return null
+
+        val idx = indexOf(foundMarker)
+        substring(idx + foundMarker.length).trim()
     }
 
     if (tail.isBlank()) return null
 
+    // Regex to split by whitespace but keep comma-separated values (like rooms D2,D6) together
     val rawParts = tail.split(Regex("\\s+")).filter { it.isNotBlank() }
-    if (rawParts.isEmpty()) return null
+    if (rawParts.size < 2) return null
 
     val subjectShort = rawParts.getOrNull(0)?.cleanSubstitutionToken()
-    val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken()
+    val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken() // Will capture "D2,D6"
 
-    val teacherToken = rawParts.getOrNull(2)?.cleanSubstitutionToken()
+    // Teacher extraction: Handles "Nm(Ze)+" by taking the part before the parenthesis
+    val teacherToken = rawParts.getOrNull(2)
     val teacherTag = teacherToken?.substringBefore('(')?.cleanSubstitutionToken()
-
-    if (subjectShort.isNullOrBlank() && classroom.isNullOrBlank() && teacherTag.isNullOrBlank()) return null
 
     return SubstitutionOverrides(
         subjectFull = subjectShort,
