@@ -1,5 +1,6 @@
 package me.tomasan7.jecnamobile.util
 
+import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
 import io.github.tomhula.jecnaapi.data.timetable.Lesson
 
 internal data class SubstitutionOverrides(
@@ -13,15 +14,6 @@ internal fun String.cleanSubstitutionToken(): String =
     trim()
         .trimEnd(',', ';', '.', '+')
 
-/**
- * Extracts the part of a substitution text that belongs to the given [lesson] when the lesson spot is split by group.
- *
- * Rules:
- * - If the text contains both "1/2" and "2/2", it will be split at the first occurrence of the second marker,
- *   and each chunk is routed to its respective group.
- * - If it contains only one marker, it will be shown only on the matching group.
- * - If it contains no markers (or group is unknown), we fallback to showing it on the first lesson (legacy behavior).
- */
 internal fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
 {
     val raw = this
@@ -44,21 +36,7 @@ internal fun String.extractGroupSubstitutionForLesson(lesson: Lesson): String?
     return raw.substring(start, end).trim()
 }
 
-/**
- * From substitution text, extract the substitution subject(short) + classroom + substituting teacher(tag)
- * for the given lesson.
- *
- * Examples:
- *  - "2/2 CIT 19c Ku(Ka)+" -> subjectShort=CIT, classroom=19c, teacherTag=Ku
- *  - "1/2 TP 27 (Ms) odpadá..., 2/2 TP 23 Ma(Pe)+" -> for group 2: subjectShort=TP, classroom=23, teacherTag=Ma
- *
- * Rules (per requirement):
- *  - word right after group marker is subject short
- *  - next word is classroom
- *  - next word is substituting teacher (ignore anything in parentheses, which is the missing teacher)
- */
 internal fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): SubstitutionOverrides? {
-    // 1. Define keywords that should skip override parsing (Cancellations/Special events)
     val skipKeywords = listOf("odpadá", "0", "oběd")
     if (skipKeywords.any { this.contains(it, ignoreCase = true) }) {
         return null
@@ -67,7 +45,6 @@ internal fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): Subst
     val tail = if (lesson.group == null) {
         this.trim()
     } else {
-        // Handle all fractional markers seen in the image (1/2, 1/3, 2/3, etc.)
         val markers = listOf("1/2", "2/2", "1/3", "2/3", "3/3")
         val foundMarker = markers.find { this.contains(it) } ?: return null
 
@@ -77,14 +54,12 @@ internal fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): Subst
 
     if (tail.isBlank()) return null
 
-    // Regex to split by whitespace but keep comma-separated values (like rooms D2,D6) together
     val rawParts = tail.split(Regex("\\s+")).filter { it.isNotBlank() }
     if (rawParts.size < 2) return null
 
     val subjectShort = rawParts.getOrNull(0)?.cleanSubstitutionToken()
     val classroom = rawParts.getOrNull(1)?.cleanSubstitutionToken() // Will capture "D2,D6"
 
-    // Teacher extraction: Handles "Nm(Ze)+" by taking the part before the parenthesis
     val teacherToken = rawParts.getOrNull(2)
     val teacherTag = teacherToken?.substringBefore('(')?.cleanSubstitutionToken()
 
@@ -93,4 +68,70 @@ internal fun String.extractSubstitutionOverridesForLesson(lesson: Lesson): Subst
         classroom = classroom,
         teacherTag = teacherTag
     )
+}
+
+/**
+ * Resolves the full subject name from a subject short, using lessons already present in the timetable.
+ * Falls back to returning the short name unchanged when it can't be resolved.
+ */
+internal fun resolveSubjectFullNameFromLessons(subjectShort: String, allLessons: List<Lesson>): String {
+    return allLessons.firstOrNull { it.subjectName.short?.equals(subjectShort, ignoreCase = true) == true }
+        ?.subjectName
+        ?.full
+        ?: subjectShort
+}
+
+/**
+ * Resolves a [TeacherReference] for a substitution teacher tag.
+ *
+ * Order (keeps current Timetable.kt behavior):
+ * 1) Match from provided [teacherReferences]
+ * 2) Otherwise, try to infer from [allLessons] by matching teacher short tags
+ * 3) Otherwise, return null
+ */
+internal fun resolveTeacherReferenceForTag(
+    tag: String,
+    teacherReferences: Set<TeacherReference>?,
+    allLessons: List<Lesson>
+): TeacherReference? {
+    return teacherReferences
+        ?.firstOrNull { it.tag.equals(tag, ignoreCase = true) }
+        ?: run {
+            val name = allLessons.firstOrNull { it.teacherName?.short?.equals(tag, ignoreCase = true) == true }
+                ?.teacherName
+            if (name?.short != null) TeacherReference(name.full, name.short!!) else null
+        }
+}
+
+/**
+ * Builds a resolved [SubstitutionOverrides] by filling in full names (subject + teacher) where possible.
+ * This is a pure helper extracted from Timetable UI.
+ */
+internal fun resolveSubstitutionOverrides(
+    rawOverrides: SubstitutionOverrides?,
+    teacherReferences: Set<TeacherReference>?,
+    allLessons: List<Lesson>
+): SubstitutionOverrides? {
+    val subjectShort = rawOverrides?.subjectFull
+    val resolvedSubjectFull = subjectShort?.let { resolveSubjectFullNameFromLessons(it, allLessons) }
+
+    val resolvedTeacherRef: TeacherReference? = rawOverrides?.teacherTag?.let { tag ->
+        resolveTeacherReferenceForTag(tag, teacherReferences, allLessons)
+    }
+
+    return rawOverrides?.copy(
+        subjectFull = resolvedSubjectFull,
+        teacherFull = resolvedTeacherRef?.fullName,
+        teacherTag = resolvedTeacherRef?.tag ?: rawOverrides.teacherTag
+    )
+}
+
+/**
+ * Extracts "Subbing | Missing" text from a substitution string containing the "Missing(Subbing)" pattern.
+ * Returns null when the pattern isn't present.
+ */
+internal fun String.getSpojTeacherText(): String? {
+    val regex = Regex("(\\w+)\\(([^)]+)\\)")
+    val match = regex.find(this) ?: return null
+    return "${match.groupValues[2]} | ${match.groupValues[1]}"
 }

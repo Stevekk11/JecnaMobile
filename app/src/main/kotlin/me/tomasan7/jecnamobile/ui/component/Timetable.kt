@@ -1,36 +1,25 @@
 package me.tomasan7.jecnamobile.ui.component
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import io.github.tomhula.jecnaapi.data.classroom.ClassroomReference
 import io.github.tomhula.jecnaapi.data.schoolStaff.TeacherReference
-import io.github.tomhula.jecnaapi.data.timetable.*
-import me.tomasan7.jecnamobile.R
-import me.tomasan7.jecnamobile.ui.ElevationLevel
-import me.tomasan7.jecnamobile.util.SubstitutionOverrides
+import io.github.tomhula.jecnaapi.data.timetable.Timetable
 import me.tomasan7.jecnamobile.util.extractGroupSubstitutionForLesson
 import me.tomasan7.jecnamobile.util.extractSubstitutionOverridesForLesson
 import me.tomasan7.jecnamobile.util.getWeekDayName
 import me.tomasan7.jecnamobile.util.manipulate
+import me.tomasan7.jecnamobile.util.resolveSubstitutionOverrides
 import java.time.DayOfWeek
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun Timetable(
@@ -55,7 +44,7 @@ fun Timetable(
             {
                 var dayMost = 0
                 var dayHasExpandableSub = false
-                
+
                 for (lessonSpot in getLessonSpotsForDay(day)!!) {
                     if (lessonSpot.size > dayMost) dayMost = lessonSpot.size
 
@@ -78,8 +67,8 @@ fun Timetable(
     }
 
     data class LessonDialogPayload(
-        val lessonSpot: LessonSpot,
-        val lesson: Lesson
+        val lessonSpot: io.github.tomhula.jecnaapi.data.timetable.LessonSpot,
+        val lesson: io.github.tomhula.jecnaapi.data.timetable.Lesson
     )
 
     val dialogState = rememberObjectDialogState<LessonDialogPayload>()
@@ -117,7 +106,7 @@ fun Timetable(
                     )
                     HorizontalSpacer(breakWidth)
                     timetable.getLessonSpotsForDay(day)!!.forEach { lessonSpot ->
-                        LessonSpot(
+                        TimetableRow(
                             lessonSpot = lessonSpot,
                             onLessonClick = { clickedLesson -> dialogState.show(LessonDialogPayload(lessonSpot, clickedLesson)) },
                             current = timetable.getCurrentLessonSpot() === lessonSpot,
@@ -131,6 +120,7 @@ fun Timetable(
                 }
             }
         }
+
         ObjectDialog(
             state = dialogState,
             onDismissRequest = { dialogState.hide() },
@@ -138,7 +128,6 @@ fun Timetable(
                 val lesson = payload.lesson
                 val clickedSpot = payload.lessonSpot
 
-                
                 key(clickedSpot.substitution, lesson) {
                     val substitutionText = if (effectiveShowSubstitutions)
                         clickedSpot.substitution?.extractGroupSubstitutionForLesson(lesson)
@@ -146,7 +135,6 @@ fun Timetable(
 
                     val rawOverrides = substitutionText?.extractSubstitutionOverridesForLesson(lesson)
 
-                    // Resolve subject full name from shorts using data already present in the timetable.
                     val allLessons = timetable.daysSorted
                         .asSequence()
                         .mapNotNull { day -> timetable.getLessonSpotsForDay(day) }
@@ -154,27 +142,10 @@ fun Timetable(
                         .flatMap { it.asSequence() }
                         .toList()
 
-                    val resolvedSubjectFull = rawOverrides?.subjectFull?.let { subjShort ->
-                        allLessons.firstOrNull { it.subjectName.short?.equals(subjShort, ignoreCase = true) == true }
-                            ?.subjectName?.full
-                            ?: subjShort
-                    }
-
-                    
-                    val resolvedTeacherRef: TeacherReference? = rawOverrides?.teacherTag?.let { tag ->
-                        teacherReferences
-                            ?.firstOrNull { it.tag.equals(tag, ignoreCase = true) }
-                            ?: run {
-                                val name = allLessons.firstOrNull { it.teacherName?.short?.equals(tag, ignoreCase = true) == true }
-                                    ?.teacherName
-                                if (name?.short != null) TeacherReference(name.full, name.short!!) else null
-                            }
-                    }
-
-                    val resolvedOverrides = rawOverrides?.copy(
-                        subjectFull = resolvedSubjectFull,
-                        teacherFull = resolvedTeacherRef?.fullName,
-                        teacherTag = resolvedTeacherRef?.tag ?: rawOverrides.teacherTag
+                    val resolvedOverrides = resolveSubstitutionOverrides(
+                        rawOverrides = rawOverrides,
+                        teacherReferences = teacherReferences,
+                        allLessons = allLessons
                     )
 
                     LessonDialogContent(
@@ -192,220 +163,28 @@ fun Timetable(
 
 @Composable
 private fun TimetableLessonPeriod(
-    lessonPeriod: LessonPeriod,
+    lessonPeriod: io.github.tomhula.jecnaapi.data.timetable.LessonPeriod,
     hourIndex: Int,
     modifier: Modifier = Modifier
 )
 {
-    Surface(
+    androidx.compose.material3.Surface(
         modifier = modifier,
-        shadowElevation = ElevationLevel.level1,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).manipulate(1.5f),
-        shape = RoundedCornerShape(5.dp),
+        shadowElevation = me.tomasan7.jecnamobile.ui.ElevationLevel.level1,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).manipulate(1.5f),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(5.dp),
     ) {
         Box(Modifier.padding(4.dp)) {
-            Text(
-                modifier = Modifier.align(Alignment.TopCenter),
+            androidx.compose.material3.Text(
+                modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter),
                 text = hourIndex.toString(),
-                fontWeight = FontWeight.Bold
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
             )
-            Text(
-                modifier = Modifier.align(Alignment.BottomCenter),
+            androidx.compose.material3.Text(
+                modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                 text = lessonPeriod.toString(),
                 fontSize = 12.sp
             )
-        }
-    }
-}
-
-@Composable
-private fun LessonSpot(
-    lessonSpot: LessonSpot,
-    onLessonClick: (Lesson) -> Unit = {},
-    current: Boolean = false,
-    next: Boolean = false,
-    hideClass: Boolean = false,
-    showSubstitutions: Boolean = true,
-    breakWidth: Dp = 0.dp
-)
-{
-    val totalWidth = lessonSpot.periodSpan * 100.dp + breakWidth * (lessonSpot.periodSpan - 1)
-    var lessonSpotModifier = Modifier.width(totalWidth)
-
-    if (lessonSpot.size <= 2)
-        lessonSpotModifier = lessonSpotModifier.fillMaxHeight()
-
-    Column(lessonSpotModifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (showSubstitutions && lessonSpot.substitution?.lowercase()?.contains("spoj") == true && lessonSpot.size > 1) {
-            val mergedLesson = lessonSpot.first().copy(group = "spoj")
-            Lesson(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                onClick = { onLessonClick(mergedLesson) },
-                lesson = mergedLesson,
-                current = current,
-                next = next,
-                hideClass = hideClass,
-                substitution = lessonSpot.substitution,
-                isSpoj = true
-            )
-        } else {
-            lessonSpot.forEachIndexed { index, lesson ->
-                /* If there is < 2 lessons, they are stretched to  */
-                var lessonModifier = Modifier.fillMaxWidth()
-                lessonModifier = if (lessonSpot.size <= 2)
-                    lessonModifier.weight(1f)
-                else
-                    lessonModifier.height(50.dp)
-
-                val substitutionForLesson = remember(showSubstitutions, lessonSpot.substitution, lessonSpot.size, index, lesson.group) {
-                    if (!showSubstitutions) return@remember null
-                    val raw = lessonSpot.substitution ?: return@remember null
-
-                    // If the spot isn't split (or groups aren't known), keep original behavior.
-                    if (lessonSpot.size <= 1) return@remember if (index == 0) raw else null
-
-                    // For split lessons, try to route substitutions marked with 1/2 or 2/2 or thirds to the correct group.
-                    raw.extractGroupSubstitutionForLesson(lesson)
-                }
-
-                Lesson(
-                    modifier = lessonModifier,
-                    onClick = { onLessonClick(lesson) },
-                    lesson = lesson,
-                    current = current,
-                    next = next,
-                    hideClass = hideClass,
-                    substitution = substitutionForLesson
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun Lesson(
-    lesson: Lesson,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-    current: Boolean = false,
-    next: Boolean = false,
-    hideClass: Boolean = false,
-    substitution: String? = null,
-    isSpoj: Boolean = false
-) {
-    val shape = RoundedCornerShape(5.dp)
-    val substitutionLower = substitution?.lowercase()
-    
-    val greenOutline = Color(0xFF4CAF50)
-    val yellowOutline = Color(0xFFFFC107)
-    val borderColor = when {
-        substitutionLower == null -> if (next) MaterialTheme.colorScheme.inverseSurface else null
-        substitutionLower.contains("0") || substitutionLower.contains("odpadá") || substitutionLower.contains("oběd") -> greenOutline
-        substitutionLower.contains("spoj") -> yellowOutline
-        else -> MaterialTheme.colorScheme.error
-    }
-    
-    val overrides = remember(substitution, lesson) {
-        if (substitution == null || isSpoj) null
-        else substitution.extractSubstitutionOverridesForLesson(lesson)
-    }
-
-    val displayClassroom = overrides?.classroom ?: lesson.classroom
-    val isRoomChanged = overrides?.classroom != null && overrides.classroom != lesson.classroom
-
-    val outlinedModifier = if (borderColor != null) modifier.border(1.dp, borderColor, shape) else modifier
-
-    Surface(
-        modifier = outlinedModifier,
-        tonalElevation = ElevationLevel.level2,
-        shadowElevation = ElevationLevel.level1,
-        shape = shape,
-        color = if (current) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
-        onClick = onClick
-    ) {
-        Box(Modifier.padding(horizontal = 3.dp, vertical = 2.dp)) {
-
-            /* SUBJECT NAME */
-            if (lesson.subjectName.short != null) {
-                Text(
-                    text = lesson.subjectName.short!!,
-                    modifier = Modifier.align(Alignment.Center),
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = if (substitution != null && !isSpoj) TextDecoration.LineThrough else null
-                )
-            }
-
-            /* CLASSROOM (Top Right) */
-            if (displayClassroom != null) {
-                Text(
-                    text = displayClassroom,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    // Highlight red if the room is different from the original
-                    color = if (isRoomChanged) MaterialTheme.colorScheme.error else Color.Unspecified,
-                    fontWeight = if (isRoomChanged) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 12.sp
-                )
-            }
-
-            /* TEACHER (Top Left) */
-            if (isSpoj && substitution != null) {
-                // Extract "Missing(Subbing)" pattern for merged lessons
-                val regex = Regex("(\\w+)\\(([^)]+)\\)")
-                val match = regex.find(substitution)
-                if (match != null) {
-                    Text(
-                        text = "${match.groupValues[2]} | ${match.groupValues[1]}",
-                        modifier = Modifier.align(Alignment.TopStart),
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 11.sp,
-                        lineHeight = 11.sp
-                    )
-                }
-            } else {
-                val displayTeacher = overrides?.teacherTag ?: lesson.teacherName?.short
-                if (displayTeacher != null) {
-                    Text(
-                        text = displayTeacher,
-                        modifier = Modifier.align(Alignment.TopStart),
-                        color = if (overrides?.teacherTag != null) MaterialTheme.colorScheme.error else Color.Unspecified,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            /* CLASS (Bottom Left) */
-            if (!hideClass && lesson.clazz != null) {
-                Text(
-                    text = lesson.clazz!!,
-                    modifier = Modifier.align(Alignment.BottomStart),
-                    fontSize = 10.sp
-                )
-            }
-
-            /* GROUP (Bottom Right) */
-            if (lesson.group != null) {
-                Text(
-                    text = lesson.group!!,
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                    fontSize = 10.sp
-                )
-            }
-
-            /* SUBSTITUTION FOOTNOTE (Bottom Left/Center) */
-            if (substitution != null) {
-                Text(
-                    text = substitution,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(bottom = if (!hideClass && lesson.clazz != null) 12.dp else 0.dp)
-                        .widthIn(max = 85.dp),
-                    fontSize = 9.sp,
-                    textAlign = TextAlign.Left,
-                    color = MaterialTheme.colorScheme.error,
-                    lineHeight = 10.sp,
-                )
-            }
         }
     }
 }
@@ -416,103 +195,15 @@ private fun DayLabel(
     modifier: Modifier = Modifier
 )
 {
-    Surface(
+    androidx.compose.material3.Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).manipulate(1.5f),
-        shadowElevation = ElevationLevel.level1,
-        shape = RoundedCornerShape(5.dp)
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp).manipulate(1.5f),
+        shadowElevation = me.tomasan7.jecnamobile.ui.ElevationLevel.level1,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(5.dp)
     )
     {
-        Box(Modifier.padding(4.dp), contentAlignment = Alignment.Center) {
-            Text(text = day, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun LessonDialogContent(
-    lesson: Lesson,
-    onCloseClick: () -> Unit = {},
-    onTeacherClick: (TeacherReference) -> Unit,
-    onClassroomClick: (ClassroomReference) -> Unit,
-    substitutionOverrides: SubstitutionOverrides? = null
-)
-{
-    val red = MaterialTheme.colorScheme.error
-
-    val substitutionSubject = substitutionOverrides?.subjectFull
-    val substitutionTeacherFull = substitutionOverrides?.teacherFull
-    val substitutionTeacherTag = substitutionOverrides?.teacherTag
-    val substitutionClassroom = substitutionOverrides?.classroom
-
-    val titleText = substitutionSubject?.takeIf { it.isNotBlank() } ?: lesson.subjectName.full
-    val titleColor = if (!substitutionSubject.isNullOrBlank() && !substitutionSubject.equals(lesson.subjectName.full, ignoreCase = true)) red else Color.Unspecified
-
-    DialogContainer(
-        title = {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                Text(
-                    text = titleText,
-                    textAlign = TextAlign.Center,
-                    color = titleColor,
-                )
-            }
-        },
-        buttons = {
-            TextButton(onClick = onCloseClick) {
-                Text(stringResource(R.string.close))
-            }
-        }
-    )
-    {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        )
-        {
-            if (!substitutionTeacherFull.isNullOrBlank() && !substitutionTeacherTag.isNullOrBlank())
-            {
-                DialogRow(
-                    label = stringResource(R.string.timetable_dialog_teacher),
-                    value = substitutionTeacherFull,
-                    valueColor = red,
-                    onClick = { onTeacherClick(TeacherReference(substitutionTeacherFull, substitutionTeacherTag)) }
-                )
-            }
-            else
-            {
-                val teacher = lesson.teacherName
-                if (teacher != null && teacher.short == null)
-                    DialogRow(
-                        label = stringResource(R.string.timetable_dialog_teacher),
-                        value = teacher.full
-                    )
-                else if (teacher?.short != null)
-                    DialogRow(
-                        label = stringResource(R.string.timetable_dialog_teacher),
-                        value = teacher.full,
-                        onClick = { onTeacherClick(TeacherReference(teacher.full, teacher.short!!)) }
-                    )
-            }
-            if (!substitutionClassroom.isNullOrBlank())
-            {
-                DialogRow(
-                    label = stringResource(R.string.timetable_dialog_classroom),
-                    value = substitutionClassroom,
-                    valueColor = red,
-                    onClick = { onClassroomClick(ClassroomReference(substitutionClassroom, substitutionClassroom)) }
-                )
-            }
-            else if (lesson.classroom != null)
-            {
-                DialogRow(
-                    stringResource(R.string.timetable_dialog_classroom),
-                    lesson.classroom!!,
-                    { onClassroomClick(ClassroomReference(lesson.classroom!!, lesson.classroom!!)) }
-                )
-            }
-
-            if (lesson.group != null)
-                DialogRow(stringResource(R.string.timetable_dialog_group), lesson.group!!)
+        Box(Modifier.padding(4.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            androidx.compose.material3.Text(text = day, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         }
     }
 }
