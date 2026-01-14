@@ -296,9 +296,14 @@
     <string name="classroom_main_class">Kmenová učebna</string>
     <string name="classroom_title_timetable">Rozvrh hodin</string>
     <string name="classrooms_search_placeholder">Název učebny/číslo</string>
+    
     <!-- ##### Substitution ##### -->
     <string name="substitution_last_update">Suplování aktuální pro</string>
     <string name="teacher_absences">Nepřítomní učitelé</string>
+    <string name="class_cancelled">odpadá</string>
+    <string name="class_joined">spoj</string>
+    <string name="class_lunch">oběd</string>
+    <string name="class_cancelled0">0</string>
 
     <!-- Teacher absence types (API codes: wholeDay/single/range/exkurze/invalid) -->
     <string name="teacher_absence_type_whole_day">celý den</string>

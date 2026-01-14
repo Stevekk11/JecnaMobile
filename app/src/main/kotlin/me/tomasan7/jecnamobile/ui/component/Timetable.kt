@@ -20,6 +20,8 @@ import me.tomasan7.jecnamobile.util.manipulate
 import me.tomasan7.jecnamobile.util.resolveSubstitutionOverrides
 import java.time.DayOfWeek
 import androidx.compose.ui.unit.sp
+import io.github.tomhula.jecnaapi.data.timetable.Lesson
+import io.github.tomhula.jecnaapi.data.timetable.LessonSpot
 
 @Composable
 fun Timetable(
@@ -67,8 +69,8 @@ fun Timetable(
     }
 
     data class LessonDialogPayload(
-        val lessonSpot: io.github.tomhula.jecnaapi.data.timetable.LessonSpot,
-        val lesson: io.github.tomhula.jecnaapi.data.timetable.Lesson
+        val lessonSpot: LessonSpot,
+        val lesson: Lesson
     )
 
     val dialogState = rememberObjectDialogState<LessonDialogPayload>()

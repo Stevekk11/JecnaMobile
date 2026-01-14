@@ -12,11 +12,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.tomasan7.jecnamobile.R
 import io.github.tomhula.jecnaapi.data.timetable.Lesson
 import me.tomasan7.jecnamobile.ui.ElevationLevel
 import me.tomasan7.jecnamobile.util.extractSubstitutionOverridesForLesson
@@ -41,8 +43,8 @@ internal fun TimetableLessonCard(
     val yellowOutline = Color(0xFFFFC107)
     val borderColor = when {
         substitutionLower == null -> if (next) MaterialTheme.colorScheme.inverseSurface else null
-        substitutionLower.contains("0") || substitutionLower.contains("odpadá") || substitutionLower.contains("oběd") -> greenOutline
-        substitutionLower.contains("spoj") -> yellowOutline
+        substitutionLower.contains(stringResource(R.string.class_cancelled0)) || substitutionLower.contains(stringResource(R.string.class_cancelled)) || substitutionLower.contains(stringResource(R.string.class_lunch)) -> greenOutline
+        substitutionLower.contains(stringResource(R.string.class_joined)) -> yellowOutline
         else -> MaterialTheme.colorScheme.error
     }
 
@@ -76,7 +78,7 @@ internal fun TimetableLessonCard(
                 )
             }
 
-            /* CLASSROOM (Top Right) */
+            
             if (displayClassroom != null) {
                 Text(
                     text = displayClassroom,
@@ -87,7 +89,7 @@ internal fun TimetableLessonCard(
                 )
             }
 
-            /* TEACHER (Top Left) */
+            
             if (isSpoj && substitution != null) {
                 val spojText = remember(substitution) { substitution.getSpojTeacherText() }
                 if (spojText != null) {
@@ -111,7 +113,7 @@ internal fun TimetableLessonCard(
                 }
             }
 
-            /* CLASS (Bottom Left) */
+            
             if (!hideClass && lesson.clazz != null) {
                 Text(
                     text = lesson.clazz!!,
@@ -120,7 +122,7 @@ internal fun TimetableLessonCard(
                 )
             }
 
-            /* GROUP (Bottom Right) */
+            
             if (lesson.group != null) {
                 Text(
                     text = lesson.group!!,
@@ -129,7 +131,7 @@ internal fun TimetableLessonCard(
                 )
             }
 
-            /* SUBSTITUTION FOOTNOTE (Bottom Left/Center) */
+            
             if (substitution != null) {
                 Text(
                     text = substitution,
