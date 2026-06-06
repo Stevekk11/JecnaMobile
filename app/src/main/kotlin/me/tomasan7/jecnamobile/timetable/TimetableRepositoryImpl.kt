@@ -8,9 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-class TimetableRepositoryImpl @Inject constructor(
+class TimetableRepositoryImpl(
     private val jecnaClient: JecnaClient,
     private val substitutionClient: JecnaSuplClient,
 ) : TimetableRepository
@@ -67,9 +66,10 @@ class TimetableRepositoryImpl @Inject constructor(
             substitutionClient.getSchedule(className)
         }
         return SubstitutionData(
-            subs.status.lastUpdated,
-            subs.status.currentUpdateSchedule.toInt(),
-            subs.schedule.map { (date, schedule) -> schedule.toDailySchedule(date) }
+            lastUpdated = subs.status.lastUpdated,
+            currentUpdateSchedule = subs.status.currentUpdateSchedule.toInt(),
+            data = subs.schedule.map { (date, schedule) -> schedule.toDailySchedule(date) },
+            announcements = subs.annoucements.mapValues { it.value.map { a -> a.toAnnouncement() } }
         )
     }
 

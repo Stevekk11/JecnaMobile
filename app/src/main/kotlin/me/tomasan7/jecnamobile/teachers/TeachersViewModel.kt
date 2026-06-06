@@ -4,21 +4,18 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import de.palm.composestateevents.StateEventWithContent
 import de.palm.composestateevents.consumed
 import de.palm.composestateevents.triggered
+import io.github.tomhula.jecnaapi.JecnaClient
 import io.github.tomhula.jecnaapi.data.schoolStaff.TeachersPage
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.SubScreenViewModel
-import javax.inject.Inject
 
-@HiltViewModel
-class TeachersViewModel @Inject constructor(
-    @ApplicationContext
+
+class TeachersViewModel(
     appContext: Context,
-    private val repository: TeachersRepository
+    private val jecnaClient: JecnaClient
 ) : SubScreenViewModel<TeachersPage>(appContext)
 {
     override val parseErrorMessage = appContext.getString(R.string.error_unsupported_teachers)
@@ -31,7 +28,7 @@ class TeachersViewModel @Inject constructor(
 
     fun onSnackBarMessageEventConsumed() = changeUiState(snackBarMessageEvent = consumed())
 
-    override suspend fun fetchRealData(): TeachersPage = repository.getTeachersPage()
+    override suspend fun fetchRealData(): TeachersPage = jecnaClient.getTeachersPage()
 
     override fun setDataUiState(data: TeachersPage) = changeUiState(teachersPage = data)
     

@@ -11,11 +11,8 @@ import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.chrynan.parcelable.core.putExtra
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import io.github.tomhula.jecnaapi.JecnaClient
 import io.github.tomhula.jecnaapi.WebJecnaClient
 import io.github.tomhula.jecnaapi.data.grade.GradesPage
@@ -35,20 +32,19 @@ import me.tomasan7.jecnamobile.util.settingsDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
+import me.tomasan7.jecnamobile.di.GradesCacheRepository
 import me.tomasan7.jecnamobile.navigation.AppDestination
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 
-@HiltWorker
-class GradeCheckerWorker @AssistedInject constructor(
-    @Assisted
+
+class GradeCheckerWorker(
     private val appContext: Context,
-    @Assisted
     private val params: WorkerParameters,
     private val jecnaClient: JecnaClient,
     private val authRepository: AuthRepository,
-    private val cacheGradesRepository: CacheRepository<GradesPage, SchoolYearHalfParams>,
+    private val cacheGradesRepository: GradesCacheRepository,
     private val gradeChangeChecker: GradesChangeChecker
 ) : CoroutineWorker(appContext, params)
 {

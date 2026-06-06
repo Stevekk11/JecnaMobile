@@ -2,48 +2,53 @@ package me.tomasan7.jecnamobile.di
 
 import android.content.Context
 import cz.jzitnik.jecna_supl_client.JecnaSuplClient
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
 import io.github.tomhula.jecnaapi.CanteenClient
 import io.github.tomhula.jecnaapi.JecnaClient
-import io.github.tomhula.jecnaapi.WebJecnaClient
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import me.tomasan7.jecnamobile.JecnaClientLoginStateProvider
 import me.tomasan7.jecnamobile.LoginStateProvider
+import me.tomasan7.jecnamobile.gradenotifications.GradeCheckerWorker
+import me.tomasan7.jecnamobile.gradenotifications.change.GradesChangeChecker
+import me.tomasan7.jecnamobile.gradenotifications.change.GradesChangeCheckerImpl
 import me.tomasan7.jecnamobile.util.settingsDataStore
-import javax.inject.Singleton
+import org.koin.androidx.workmanager.dsl.worker
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
+import org.koin.plugin.module.dsl.create
+import org.koin.plugin.module.dsl.bind
+import org.koin.plugin.module.dsl.single
 import kotlin.time.Duration.Companion.seconds
 
-@Module(includes = [AppModuleBindings::class, CacheRepositoriesModule::class])
-@InstallIn(SingletonComponent::class)
-internal object AppModule
-{
-    @Provides
-    @Singleton
-    /* Long timeout because attendances page takes the server around 11s to respond */
-    fun provideJecnaClient() = JecnaClient(autoLogin = true, userAgent = "JM", requestTimeout = 15.seconds)
-
-    @Provides
-    @Singleton
-    fun provideCanteenClient() = CanteenClient(autoLogin = true, userAgent = "JM")
-
-    @Provides
-    @Singleton
-    fun provideSubstitutionClient(@ApplicationContext context: Context) =
-        JecnaSuplClient().apply {
-            setProvider(runBlocking {
-                context.settingsDataStore.data.first().substitutionServerUrl.trim()
-            })
-        }
-
-    @Provides
-    @Singleton
-    fun provideLoginStateProvider(jecnaClient: JecnaClient) = object : LoginStateProvider
-    {
-        override val afterFirstLogin: Boolean
-            get() = (jecnaClient as WebJecnaClient).autoLoginAuth != null
+internal val appModule = module {
+    includes(repositoriesModule, cacheRepositoriesModule, viewModelsModule)
+    
+    single { create(::jecnaClient) }
+    single { create(::canteenClient) }
+    single { create(::jecnaSuplClient) }
+    
+    single<JecnaClientLoginStateProvider>().bind(LoginStateProvider::class)
+    single<GradesChangeCheckerImpl>().bind(GradesChangeChecker::class)
+    
+    worker { params ->
+        GradeCheckerWorker(
+            appContext = params.get(),
+            params = params.get(),
+            jecnaClient = get(),
+            authRepository = get(),
+            cacheGradesRepository = get(named("grades")),
+            gradeChangeChecker = GradesChangeCheckerImpl()
+        ) 
     }
+}
+
+private fun jecnaClient(): JecnaClient = JecnaClient(autoLogin = true, userAgent = "JM", requestTimeout = 15.seconds)
+private fun canteenClient(): CanteenClient = CanteenClient(autoLogin = true, userAgent = "JM")
+private fun jecnaSuplClient(context: Context): JecnaSuplClient
+{
+    val jecnaSuplClient = JecnaSuplClient()
+    runBlocking {
+        jecnaSuplClient.setProvider(context.settingsDataStore.data.first().substitutionServerUrl.trim())
+    }
+    return jecnaSuplClient
 }

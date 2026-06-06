@@ -6,8 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import cz.jzitnik.jecna_supl_client.ReportLocation
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import de.palm.composestateevents.consumed
 import de.palm.composestateevents.triggered
 import kotlinx.coroutines.launch
@@ -16,13 +14,12 @@ import me.tomasan7.jecnamobile.SubScreenViewModel
 import me.tomasan7.jecnamobile.timetable.SubstitutionAllData
 import me.tomasan7.jecnamobile.timetable.TimetableRepository
 import java.time.LocalDate
-import javax.inject.Inject
 import kotlin.time.Clock
 
-@HiltViewModel
-class SubstitutionViewModel @Inject constructor(
-    @ApplicationContext context: Context,
-    private val repository: TimetableRepository
+
+class SubstitutionViewModel(
+    context: Context,
+    private val jecnaClient: TimetableRepository
 ) : SubScreenViewModel<SubstitutionAllData>(context)
 {
     override val parseErrorMessage = context.getString(R.string.substitution_all_load_error)
@@ -31,7 +28,7 @@ class SubstitutionViewModel @Inject constructor(
     var uiState by mutableStateOf(SubstitutionState())
         private set
 
-    override suspend fun fetchRealData() = repository.getAllSubstitutions()
+    override suspend fun fetchRealData() = jecnaClient.getAllSubstitutions()
 
     override fun setDataUiState(data: SubstitutionAllData)
     {
@@ -68,7 +65,7 @@ class SubstitutionViewModel @Inject constructor(
     fun reportError(content: String, location: ReportLocation, onFinished: () -> Unit)
     {
         viewModelScope.launch {
-            repository.reportSubstitutionError(content, location)
+            jecnaClient.reportSubstitutionError(content, location)
                 .onSuccess {
                     showSnackBarMessage(appContext.getString(R.string.report_success))
                 }

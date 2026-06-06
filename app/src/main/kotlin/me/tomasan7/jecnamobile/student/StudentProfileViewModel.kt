@@ -6,8 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import coil.request.ImageRequest
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import de.palm.composestateevents.StateEventWithContent
 import de.palm.composestateevents.consumed
 import de.palm.composestateevents.triggered
@@ -20,14 +18,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.SubScreenViewModel
-import javax.inject.Inject
 
-@HiltViewModel
-class StudentProfileViewModel @Inject constructor(
-    @ApplicationContext
+
+class StudentProfileViewModel(
     appContext: Context,
     private val jecnaClient: JecnaClient,
-    private val repository: StudentProfileRepository
 ) : SubScreenViewModel<Student>(appContext)
 {
     override val parseErrorMessage = appContext.getString(R.string.error_unsupported_student_profile)
@@ -42,7 +37,7 @@ class StudentProfileViewModel @Inject constructor(
         loadLocker()
     }
     
-    override suspend fun fetchRealData() = repository.getCurrentStudent()
+    override suspend fun fetchRealData() = jecnaClient.getStudentProfile()
     
     override fun setDataUiState(data: Student) = changeUiState(student = data)
     
@@ -60,7 +55,7 @@ class StudentProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try
             {
-                val locker = repository.getLocker()
+                val locker = jecnaClient.getLocker()
                 if (locker == null) {
                     changeUiState(locker = null, lockerError = appContext.getString(R.string.profile_locker_load_error))
                 } else {

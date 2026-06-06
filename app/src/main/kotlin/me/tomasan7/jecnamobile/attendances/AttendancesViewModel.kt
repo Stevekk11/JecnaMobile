@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import de.palm.composestateevents.StateEventWithContent
 import de.palm.composestateevents.consumed
 import de.palm.composestateevents.triggered
@@ -15,19 +13,17 @@ import kotlinx.datetime.Month
 import me.tomasan7.jecnamobile.LoginStateProvider
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.SubScreenCacheViewModel
-import me.tomasan7.jecnamobile.caching.CacheRepository
 import me.tomasan7.jecnamobile.caching.SchoolYearMonthParams
+import me.tomasan7.jecnamobile.di.AttendancesCacheRepository
 import me.tomasan7.jecnamobile.util.CachedDataNew
-import javax.inject.Inject
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-@HiltViewModel
-class AttendancesViewModel @Inject constructor(
-    @ApplicationContext
+
+class AttendancesViewModel(
     appContext: Context,
     loginStateProvider: LoginStateProvider,
-    repository: CacheRepository<AttendancesPage, SchoolYearMonthParams>
+    repository: AttendancesCacheRepository
 ) : SubScreenCacheViewModel<AttendancesPage, SchoolYearMonthParams>(appContext, loginStateProvider, repository)
 {
     override val parseErrorMessage = appContext.getString(R.string.error_unsupported_attendances)

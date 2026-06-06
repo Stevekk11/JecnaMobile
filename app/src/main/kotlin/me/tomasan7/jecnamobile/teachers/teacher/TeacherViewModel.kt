@@ -5,8 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import coil.request.ImageRequest
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import de.palm.composestateevents.StateEventWithContent
 import de.palm.composestateevents.consumed
 import de.palm.composestateevents.triggered
@@ -18,15 +16,11 @@ import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import me.tomasan7.jecnamobile.R
 import me.tomasan7.jecnamobile.SubScreenViewModel
-import me.tomasan7.jecnamobile.teachers.TeachersRepository
-import javax.inject.Inject
 
-@HiltViewModel
-class TeacherViewModel @Inject constructor(
-    @ApplicationContext
+
+class TeacherViewModel(
     appContext: Context,
     private val jecnaClient: JecnaClient,
-    private val repository: TeachersRepository
 ) : SubScreenViewModel<Teacher>(appContext)
 {
     override val parseErrorMessage = appContext.getString(R.string.error_unsupported_teacher)
@@ -47,7 +41,7 @@ class TeacherViewModel @Inject constructor(
 
     override fun setDataUiState(data: Teacher) = changeUiState(teacher = data)
     
-    override suspend fun fetchRealData() = repository.getTeacher(teacherReference)
+    override suspend fun fetchRealData() = jecnaClient.getTeacher(teacherReference)
     
     override fun showSnackBarMessage(message: String) = changeUiState(snackBarMessageEvent = triggered(message))
     override fun setLoadingUiState(loading: Boolean) = changeUiState(loading = loading)
